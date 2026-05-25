@@ -1,0 +1,2910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Matrix Explorer</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  display: flex;
+  font-family: 'Courier New', 'Consolas', monospace;
+  font-size: 17px;
+  background: #f0ece4;
+  color: #2a1f0e;
+}
+
+/* ── Sidebar ──────────────────────────────────────────── */
+#sidebar {
+  width: 270px; min-width: 270px;
+  background: #faf8f4;
+  border-right: 1px solid #d8d0c4;
+  display: flex; flex-direction: column;
+  transition: width 0.3s ease, min-width 0.3s ease, border 0.3s ease;
+  position: relative;
+  overflow: hidden;   /* clips the collapsed slide-out animation */
+}
+#sidebar.collapsed {
+  width: 0; min-width: 0;
+  border-right: none;
+}
+#sidebar.collapsed #sidebar-inner {
+  min-width: 0;
+  overflow: hidden;
+}
+#sidebar-inner {
+  min-width: 270px;
+  padding: 16px 14px;
+  display: flex; flex-direction: column; gap: 18px;
+  overflow-y: auto;
+  /* Must have an explicit height limit for overflow-y to scroll.
+     height: 0 + flex: 1 lets the inner fill the sidebar but scroll when content overflows. */
+  flex: 1 1 0;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #c0b098 transparent;
+}
+
+.icon-btn {
+  width: 24px; height: 24px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #f5f0e8; color: #1a56a0;
+  border: 1px solid #c0a880; border-radius: 3px; cursor: pointer;
+  font-size: 0.85em; line-height: 1;
+}
+.icon-btn:hover { background: #ede6d8; border-color: #1a56a0; }
+
+#sidebar h1 {
+  font-size: 1.15em; letter-spacing: 2px;
+  text-transform: uppercase; color: #1a56a0;
+  margin: 0;
+}
+
+#title-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 6px; border-bottom: 1px solid #d8d0c4; padding-bottom: 8px;
+}
+
+.sec-hd {
+  font-size: 0.72em; text-transform: uppercase;
+  letter-spacing: 1.2px; color: #9a8e7a;
+  margin-bottom: 7px;
+}
+
+.ctrl-row { margin-bottom: 10px; }
+.ctrl-row label { display: block; font-size: 0.85em; color: #6b5a40; margin-bottom: 3px; }
+
+select {
+  width: 100%; padding: 5px 8px; font-size: 0.88em;
+  font-family: inherit;
+  background: #faf8f4; color: #2a1f0e;
+  border: 1px solid #d0c8bc; border-radius: 3px; cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a09070'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 7px center;
+  padding-right: 22px;
+}
+select:focus { outline: none; border-color: #1a56a0; }
+
+.legend { display: flex; flex-direction: column; gap: 6px; }
+.leg { display: flex; align-items: center; gap: 8px; font-size: 0.85em; color: #4a3e2e; }
+.leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Parameter sliders ────────────────────────── */
+#params-controls { display: flex; flex-direction: column; gap: 10px; }
+.param-row { display: flex; flex-direction: column; gap: 3px; }
+.param-hdr { display: flex; justify-content: space-between; align-items: baseline; }
+.param-row label { font-size: 0.8em; color: #6b5a40; }
+.param-row input[type=range] { width: 100%; accent-color: #1a56a0; cursor: pointer; margin: 0; }
+.param-val { font-size: 0.78em; color: #1a56a0; font-family: 'Courier New', monospace; }
+
+/* ── Plot area ────────────────────────────────────────── */
+#plot-wrap { flex: 1; position: relative; overflow: hidden; }
+canvas { display: block; cursor: crosshair; touch-action: none; }
+
+/* ── Zoom buttons ─────────────────────────────── */
+#zoom-btns {
+  position: absolute; top: 8px; right: 8px; z-index: 20;
+  display: flex; gap: 4px;
+}
+#zoom-btns button {
+  width: 28px; height: 28px;
+  border: 1px solid #d0c8bc; border-radius: 4px;
+  background: rgba(250,248,244,0.90);
+  font-size: 18px; font-family: system-ui, sans-serif; font-weight: 400;
+  color: #3a2e1e; cursor: pointer; padding: 0; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .1s, border-color .1s;
+}
+#zoom-btns button:hover { background: #faf8f4; border-color: #b0a080; }
+
+/* ── Tooltip ──────────────────────────────────────────── */
+#tip {
+  position: absolute; pointer-events: none; display: none;
+  background: rgba(255,255,255,0.98);
+  border: 1px solid #d0c8bc;
+  border-left: 2px solid #1a56a0;
+  border-radius: 0 4px 4px 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  padding: 10px;
+  z-index: 40;
+}
+#tip-cv { display: block; }
+#tip-info {
+  display: none;
+  border-top: 1px solid #e8e2d8;
+  margin-top: 8px; padding-top: 7px;
+  font-size: 0.82em; font-family: 'Courier New', monospace;
+  line-height: 1.8;
+}
+.tip-row { display: flex; justify-content: space-between; gap: 16px; }
+.tip-k { color: #9a8e7a; }
+.tip-v { color: #2a1f0e; font-weight: 600; }
+
+/* ── Preset description ───────────────────────────────── */
+#preset-text {
+  margin-top: 9px;
+  font-size: 0.82em;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #4a3e2e;
+  line-height: 1.55;
+  display: none;
+}
+#preset-text a { color: #1a56a0; text-decoration: none; border-bottom: 1px solid #a0bcd8; }
+#preset-text a:hover { color: #0d3a70; border-color: #0d3a70; }
+
+/* ── Collapsible sidebar sections ─────────────── */
+details.side-section { border-top: 1px solid #e8e2d8; padding-top: 10px; }
+details.side-section > summary {
+  font-size: 0.72em; text-transform: uppercase; letter-spacing: 1.2px;
+  color: #9a8e7a; cursor: pointer; user-select: none;
+  list-style: none; display: flex; align-items: center; gap: 5px;
+  margin-bottom: 0;
+}
+details.side-section > summary::before {
+  content: '▶'; font-size: 0.65em; color: #c0b098;
+  transition: transform 0.15s;
+}
+details.side-section[open] > summary::before { transform: rotate(90deg); }
+details.side-section > summary::-webkit-details-marker { display: none; }
+details.side-section[open] > summary { margin-bottom: 10px; }
+
+#tip-actions {
+  display: none;  /* removed feature — retained to avoid breaking any cached references */
+}
+
+/* ── Selected matrix panel ────────────────────── */
+#selected-panel {
+  border-top: 1px solid #d8d0c4;
+  padding: 10px 12px 14px;
+  flex-shrink: 0;
+}
+#sel-placeholder {
+  font-size: 0.78em; color: #9a8e7a;
+  font-style: italic; text-align: center;
+  padding: 6px 0;
+}
+#sel-content { display: none; }
+#sel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+#sel-header span {
+  font-size: 0.72em; font-weight: 600; color: #4a3e2e;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+#sel-close {
+  border: none; background: none; font-size: 1em;
+  color: #9a8e7a; cursor: pointer; padding: 0 2px; line-height: 1;
+}
+#sel-close:hover { color: #2a1f0e; }
+#sel-diagrams {
+  display: flex; gap: 6px; margin-bottom: 10px; align-items: flex-start;
+}
+#sel-diagrams canvas { border: 1px solid #e8e2d8; border-radius: 3px; display: block; }
+#sel-props {
+  display: grid; grid-template-columns: 1fr;
+  gap: 0 8px; margin-bottom: 10px;
+}
+.sel-prop {
+  display: flex; justify-content: space-between;
+  font-size: 0.72em; padding: 3px 0;
+  border-bottom: 1px solid #f0ece4;
+}
+.sel-k { color: #6b5a40; cursor: help; }
+.sel-v { color: #2a1f0e; font-family: 'Courier New', monospace; font-weight: 600; }
+#sel-explore {
+  width: 100%; padding: 6px 10px; font-size: 0.78em;
+  font-family: 'Courier New', monospace; text-align: left;
+  background: #1a56a0; color: #fff;
+  border: none; border-radius: 3px; cursor: pointer;
+}
+#sel-explore:hover { background: #0d3a70; }
+
+/* ── Modal ────────────────────────────────────────────── */
+#modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(42,31,14,0.55);
+  display: flex; align-items: center; justify-content: center;
+}
+#modal-box {
+  background: #faf8f4; border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  padding: 28px 32px; max-width: 520px; width: 90%;
+  font-family: system-ui, -apple-system, sans-serif;
+  max-height: 90vh; overflow-y: auto;
+}
+#modal-box h2 { font-size: 1.3em; color: #1a56a0; margin-bottom: 10px; }
+.modal-intro {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 12px;
+}
+.modal-intro > div { flex: 1; }
+#modal-mat-cv { flex-shrink: 0; display: block; }
+#modal-box h3 { font-size: 0.95em; color: #2a1f0e; margin: 14px 0 6px; }
+#modal-box p  { font-size: 0.88em; color: #4a3e2e; line-height: 1.6; margin-bottom: 10px; }
+#modal-box ul, #modal-box ol { padding-left: 18px; margin-bottom: 10px; }
+#modal-box li { font-size: 0.88em; color: #4a3e2e; line-height: 1.7; }
+#modal-close {
+  margin-top: 16px; padding: 9px 22px;
+  background: #1a56a0; color: #fff;
+  border: none; border-radius: 4px;
+  font-size: 0.92em; font-family: inherit; cursor: pointer;
+}
+#modal-close:hover { background: #0d3a70; }
+
+/* ── Narrow screens ──────────────────────────── */
+@media (max-width: 600px) {
+  body { font-size: 14px; }
+  #sidebar { width: 240px; min-width: 240px; }
+  #sidebar.collapsed { width: 0; min-width: 0; }
+  #sidebar-inner { min-width: 240px; }
+  #modal-box { padding: 18px 16px; }
+}
+/* ── Share toast ─────────────────────────── */
+#share-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #2a3a50; color: #fff; padding: 7px 16px;
+  border-radius: 4px; font-size: 0.88em; z-index: 200;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+#share-toast.visible { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="sidebar-inner">
+  <div id="title-bar">
+    <h1>Matrix Explorer</h1>
+    <div style="display:flex;gap:4px;align-items:center">
+      <button id="btn-share" class="icon-btn" title="Copy link to this view"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
+      <button id="btn-info"  class="icon-btn" title="About this tool">?</button>
+      <button id="btn-toggle" class="icon-btn" title="Hide sidebar">&#9664;</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="sec-hd">Presets</div>
+    <select id="sel-preset"></select>
+    <div id="preset-text"></div>
+  </div>
+
+  <details class="side-section" id="axes-details">
+    <summary>Axes &amp; colour</summary>
+    <div class="ctrl-row"><label>X axis</label><select id="sel-x"></select></div>
+    <div class="ctrl-row"><label>Y axis</label><select id="sel-y"></select></div>
+    <div class="ctrl-row"><label>Colour by</label><select id="sel-c"></select></div>
+    <div class="legend" id="legend"></div>
+  </details>
+
+  <details class="side-section" id="params-details">
+    <summary>View options</summary>
+    <div id="params-controls"></div>
+  </details>
+
+  <div id="selected-panel">
+    <div id="sel-placeholder">Click a matrix to find out more about it.</div>
+    <div id="sel-content">
+      <div id="sel-header">
+        <span>Selected matrix</span>
+        <button id="sel-close" title="Deselect">&#x2715;</button>
+      </div>
+      <div id="sel-diagrams">
+        <canvas id="sel-mat-cv"></canvas>
+        <canvas id="sel-tfm-cv"></canvas>
+      </div>
+      <div id="sel-props"></div>
+      <button id="sel-explore">Open Transformation Explorer &#x2197;</button>
+    </div>
+  </div>
+
+  </div><!-- /sidebar-inner -->
+</div>
+<div id="modal-overlay">
+  <div id="modal-box">
+    <h2>Matrix Explorer</h2>
+    <div class="modal-intro">
+      <div>
+        <p>There are 7⁴ = <strong>2401</strong> two-by-two matrices with integer entries in {−3, −2, −1, 0, 1, 2, 3}. For example:</p>
+      </div>
+      <canvas id="modal-mat-cv" width="90" height="72"></canvas>
+    </div>
+    <p>Each dot on the screen is one of them. At the start they are arranged randomly, but you can organise them by choosing a mathematical property for each axis. As you change the axes, the dots animate to their new positions.</p>
+    <h3>What you can do</h3>
+    <ul>
+      <li>Choose a <strong>preset</strong> for a guided view with an explanation</li>
+      <li>Use the <strong>X and Y axis</strong> dropdowns to build your own categorisation</li>
+      <li><strong>Scroll and zoom</strong> to explore how matrices cluster together</li>
+      <li><strong>Hover</strong> a dot to preview the matrix. <strong>Click</strong> it to see full details in the sidebar</li>
+    </ul>
+    <button id="modal-close">Continue</button>
+  </div>
+</div>
+
+<div id="share-toast">Link copied to clipboard</div>
+
+<div id="plot-wrap">
+  <button id="btn-show-sidebar" class="icon-btn" title="Show sidebar"
+    style="position:absolute;left:6px;top:6px;z-index:25;display:none">&#9654;</button>
+  <div id="zoom-btns">
+    <button id="btn-zoom-in"  title="Zoom in">+</button>
+    <button id="btn-zoom-out" title="Zoom out (double-click plot to reset)">−</button>
+  </div>
+  <canvas id="plot"></canvas>
+  <div id="tip">
+    <canvas id="tip-cv" width="240" height="108"></canvas>
+    <div id="tip-info"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ── src/properties.js ───────────────────────────────
+
+// ════════════════════════════════════════════════
+//  PROPERTIES — schema layer
+//
+//  Defines what properties exist (P), their types
+//  and ranges, colour schemes (SCALES, SC), colour
+//  utility functions, and axis geometry constants
+//  (AXIS_MARGIN, BKT_FRAC, BKT_GAP, PAD).
+//
+//  Read by everything. Writes nothing at runtime.
+//  Changes here have the widest blast radius.
+//  Depends on: nothing.
+// ════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════
+//  CONSTANTS
+// ════════════════════════════════════════════════
+
+const BKT_FRAC = 0.13;   // fraction of axis reserved for complex bucket
+const BKT_GAP  = 0.025;  // gap between bucket and main range
+
+const PAD = { top: 38, right: 30, bot: 64 };  // left is dynamic (wider for categorical y axis)
+
+const AXIS_MARGIN = 0.05;  // fractional padding each side of a continuous/discrete axis range
+
+// Convenience accessor — returns {min, max} for a property key.
+// Used by positioning (app.js) and drawing (drawing.js).
+function getEffectiveLimits(key) {
+  const p = P[key];
+  return { min: p.min, max: p.max };
+}
+
+// ════════════════════════════════════════════════
+//  PROPERTY DEFINITIONS
+// ════════════════════════════════════════════════
+
+// types: 'none' | 'disc' (discrete integer) | 'cont' (continuous) | 'cat' (categorical)
+// Ranges are fixed for ENTRY_MAX = 3 (7^4 = 2401 matrices).
+
+const P = {
+  none:        { label: 'None',                              type: 'none' },
+  // Standard
+  det:         { label: 'Determinant',                       type: 'disc', min: -18,  max:  18, step: 2 },
+  trace:       { label: 'Trace',                             type: 'disc', min:  -6,  max:   6, step: 1 },
+  rank:        { label: 'Rank',                              type: 'cat',  cats: ['0','1','2'] },
+  frob_sq:     { label: '\u2016M\u2016\u00b2',               type: 'disc', min:   0,  max:  36, step: 9 },
+  // Decomposition
+  spin:        { label: 'Spin  (c\u2212b)/2',                type: 'cont', min:  -3,  max:   3, nticks: 6 },
+  shear:       { label: 'Shear  (b+c)/2',                    type: 'cont', min:  -3,  max:   3, nticks: 6 },
+  diff_stretch:{ label: 'Differential stretch (a\u2212d)/2', type: 'cont', min:  -3,  max:   3, nticks: 6 },
+  polar_angle: { label: 'Polar rotation (\u00b0)',            type: 'cont', min: -180, max: 180, nticks: 6 },
+  // Eigenvalues
+  lmin:        { label: '\u03bb_min',                        type: 'cont', min:  -9,  max:   9, bkt: 'complex' },
+  lmax:        { label: '\u03bb_max',                        type: 'cont', min:  -9,  max:   9, bkt: 'complex' },
+  im_lam:      { label: '|Im(\u03bb)|',                      type: 'cont', min:   0,  max:   5, nticks: 5 },
+  ev_type:     { label: 'Eigenvalue type',                   type: 'cat',  cats: ['complex','repeated','distinct'] },
+  ev_arg:      { label: 'Eigenvalue argument (\u00b0)',       type: 'cont', min:   0,  max: 180, nticks: 5, bkt: true },
+  // Singular values / scaling
+  sigma1:      { label: 'Max stretch factor \u03c3\u2081',   type: 'cont', min:   0,  max: 6.5, nticks: 6 },
+  sigma2:      { label: 'Min stretch factor \u03c3\u2082',   type: 'cont', min:   0,  max: 6.5, nticks: 6 },
+  spec_rad:    { label: 'Spectral radius',                   type: 'cont', min:   0,  max: 6.5, nticks: 6 },
+  inv_cond:    { label: 'Inv. condition number \u03c3\u2082/\u03c3\u2081', type: 'cont', min: 0, max: 1, nticks: 5 },
+  // Classification
+  orient:      { label: 'Orientation type',                  type: 'cat',  cats: ['singular','reversing','preserving'] },
+  symmetric:   { label: 'Symmetric?',                        type: 'cat',  cats: ['no','yes'] },
+  orthogonal:  { label: 'Orthogonal?',                       type: 'cat',  cats: ['no','yes'] },
+  nilp_idem:   { label: 'Special matrix type',               type: 'cat',  cats: ['neither','idempotent','nilpotent','involution'] },
+};
+
+const AXIS_GROUPS = [
+  { label: null,                 keys: ['none'] },
+  { label: 'Scale and geometry', keys: ['det','orient','sigma1','sigma2','inv_cond'] },
+  { label: 'Eigenvalues',        keys: ['trace','lmin','lmax','im_lam','ev_type','ev_arg','spec_rad'] },
+  { label: 'Decomposition',      keys: ['spin','shear','diff_stretch','polar_angle'] },
+  { label: 'Structure',          keys: ['rank','frob_sq','symmetric','orthogonal','nilp_idem'] },
+];
+const AXIS_KEYS = AXIS_GROUPS.flatMap(g => g.keys);
+
+const COLOR_GROUPS = [
+  { label: 'Special',     keys: ['no_color','random_color'] },
+  { label: 'By value',    keys: ['det','trace','spin','shear','diff_stretch','polar_angle','frob_sq','sigma1','sigma2','inv_cond','spec_rad','im_lam','ev_arg'] },
+  { label: 'By category', keys: ['orient','ev_type','rank','symmetric','orthogonal','nilp_idem'] },
+];
+const COLOR_KEYS = COLOR_GROUPS.flatMap(g => g.keys);
+
+// ════════════════════════════════════════════════
+//  COLOUR SCHEMES
+// ════════════════════════════════════════════════
+
+const SC = {
+  orient:    { preserving:'#1a6ab5', reversing:'#c0392b', singular:'#8a95a3' },
+  ev_type:   { distinct:'#1e7e44', repeated:'#c47d00', complex:'#6d3cab' },
+  symmetric: { yes:'#0d7a70', no:'#b5295a' },
+  orthogonal:{ yes:'#1e7e44', no:'#adb4be' },
+  nilp_idem: { neither:'#adb4be', idempotent:'#1a6ab5', nilpotent:'#c0392b', involution:'#1a8050' },
+  rank:      { '0':'#adb4be', '1':'#c47d00', '2':'#1a6ab5' },
+};
+
+// ────────────────────────────────────────────────
+//  Continuous colour scales
+// ────────────────────────────────────────────────
+
+// Each scale is an array of 2 or 3 RGB stops at t = 0, [0.5,] 1
+const SCALES = {
+  // Diverging (3 stops: negative → midpoint → positive)
+  byr:  [[0x21,0x66,0xac],[0xf5,0xc4,0x50],[0xd6,0x60,0x4d]], // blue→warm gold→red
+  ico:  [[0x3f,0x00,0x7f],[0xff,0xfa,0xeb],[0xb2,0x47,0x00]], // indigo→cream→burnt orange
+  tmc:  [[0x00,0x64,0x64],[0xff,0xfa,0xc8],[0x99,0x00,0x66]], // teal→pale yellow→magenta
+  vlg:  [[0x64,0x00,0xa0],[0xf0,0xf5,0xeb],[0x00,0x5a,0x00]], // violet→pale sage→forest green
+  cos:  [[0x00,0x3c,0x82],[0xff,0xfa,0xf0],[0x8c,0x32,0x00]], // cobalt→cream→sienna
+  nlc:  [[0x00,0x28,0x64],[0xf5,0xf0,0xff],[0xa0,0x00,0x1e]], // navy→pale lavender→crimson
+  // Sequential (2–3 stops: low → high)
+  navy: [[0xdc,0xea,0xfa],[0x08,0x30,0x6b]],                   // pale sky→deep navy
+  purp: [[0xf3,0xe5,0xff],[0x4a,0x14,0x8c]],                   // pale lavender→deep purple
+  emer: [[0xdc,0xf7,0xdc],[0x1b,0x5e,0x20]],                   // pale mint→forest green
+  aqua: [[0xc8,0xf0,0xf0],[0x00,0x5a,0x5a]],                   // pale aqua→dark teal
+  heat: [[0xff,0xf5,0xdc],[0xe6,0x64,0x14],[0x7f,0x00,0x00]], // pale amber→orange→deep crimson
+  org:  [[0xff,0xf0,0xdc],[0xcc,0x54,0x00]],                   // pale cream→burnt orange (condition number)
+  arc:  [[0xc0,0x39,0x2b],[0xf5,0xf0,0xe8],[0x1f,0x4e,0x8c]], // crimson→cream→navy (eigenvalue argument 0°→90°→180°)
+};
+
+const PROP_SCALE = {
+  det:          'byr',
+  trace:        'ico',
+  spin:         'tmc',
+  shear:        'vlg',
+  diff_stretch: 'cos',
+  polar_angle:  'nlc',
+  frob_sq:      'navy',
+  im_lam:       'purp',
+  ev_arg:       'arc',
+  sigma1:       'emer',
+  sigma2:       'aqua',
+  spec_rad:     'heat',
+  inv_cond:     'org',
+};
+
+function applyScale(t, stops) {
+  t = Math.max(0, Math.min(1, t));
+  if (t === 1) return '#' + stops[stops.length - 1]
+    .map(x => x.toString(16).padStart(2, '0')).join('');
+  const n  = stops.length - 1;
+  const s  = t * n;
+  const lo = stops[Math.floor(s)];
+  const hi = stops[Math.floor(s) + 1];
+  const f  = s - Math.floor(s);
+  return '#' + lo.map((c, i) =>
+    Math.round(c + (hi[i] - c) * f).toString(16).padStart(2, '0')
+  ).join('');
+}
+
+function scaleForProp(ck) {
+  return SCALES[PROP_SCALE[ck]] ?? SCALES.navy;
+}
+
+function scaleCssGradient(stops) {
+  const hex = stops.map(s => '#' + s.map(x => x.toString(16).padStart(2,'0')).join(''));
+  return `linear-gradient(to right, ${hex.join(', ')})`;
+}
+
+function isNumericColor(ck) {
+  return ck && P[ck] && (P[ck].type === 'cont' || P[ck].type === 'disc');
+}
+
+function numericColorT(m, ck) {
+  if (m[ck] === null || m[ck] === undefined) return null;
+  const { min, max } = getEffectiveLimits(ck);
+  if (max === min) return 0.5;
+  return (m[ck] - min) / (max - min);
+}
+
+function hexLuminance(hex) {
+  const r = parseInt(hex.slice(1,3), 16) / 255;
+  const g = parseInt(hex.slice(3,5), 16) / 255;
+  const b = parseInt(hex.slice(5,7), 16) / 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function dotBorderCol(col) {
+  return hexLuminance(col) > 0.80 ? '#9aa8b4' : null;
+}
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const v = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * v).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function getColor(m, ck) {
+  if (ck === 'no_color')     return '#4a7bb5';
+  if (ck === 'random_color') return hslToHex((m.idx * 137.508) % 360, 55, 40);
+  if (isNumericColor(ck)) {
+    const t = numericColorT(m, ck);
+    if (t === null) return '#adb4be';
+    return applyScale(t, scaleForProp(ck));
+  }
+  return SC[ck]?.[String(m[ck])] ?? '#8a95a3';
+}
+
+// ════════════════════════════════════════════════
+//  PROPERTY DISPLAY UTILITIES
+//
+//  Used by both drawing.js (tooltip) and app.js
+//  (selected matrix panel). Kept here so neither
+//  file owns shared property metadata.
+// ════════════════════════════════════════════════
+
+// Short labels for property keys — used where space is tight.
+const SHORT_LABEL = {
+  det: 'det', trace: 'trace', rank: 'rank', frob_sq: '\u2016M\u2016\u00b2',
+  spin: 'spin', shear: 'shear', diff_stretch: 'diff. stretch', polar_angle: 'polar (\u00b0)',
+  lmin: '\u03bb_min', lmax: '\u03bb_max', im_lam: '|Im(\u03bb)|', ev_type: 'eigenvalue type', ev_arg: 'arg(\u03bb) (\u00b0)',
+  sigma1: '\u03c3\u2081', sigma2: '\u03c3\u2082', spec_rad: '\u03c1', inv_cond: '\u03c3\u2082/\u03c3\u2081',
+  orient: 'orientation', symmetric: 'symmetric?', orthogonal: 'orthogonal?', nilp_idem: 'special type',
+};
+
+// Tooltip text for each property row in the selected matrix panel.
+// Shown as native title= attributes (hover to reveal).
+const PROP_TOOLTIP = {
+  det:          'Signed area scaling. det > 0: orientation preserved. det < 0: flipped. det = 0: singular (collapses to a line).',
+  trace:        'Sum of diagonal entries (a + d). Also equals the sum of eigenvalues.',
+  rank:         'Dimension of the image. 2: invertible. 1: maps plane to a line. 0: zero matrix.',
+  frob_sq:      '\u2016M\u2016\u00b2 = a\u00b2 + b\u00b2 + c\u00b2 + d\u00b2. Sum of squared entries, equal to \u03c3\u2081\u00b2 + \u03c3\u2082\u00b2.',
+  spin:         'Antisymmetric part (c \u2212 b) / 2. Measures pure rotation component of M.',
+  shear:        'Average off-diagonal entry (b + c) / 2. Measures shearing deformation.',
+  diff_stretch: 'Diagonal asymmetry (a \u2212 d) / 2. Measures how differently x and y axes are scaled.',
+  polar_angle:  'Rotation angle \u03b8 from polar decomposition M = RS. The angle of the rotation factor R.',
+  lmin:         'Smaller real eigenvalue \u03bb\u2081. Null if eigenvalues are complex (shown in bucket).',
+  lmax:         'Larger real eigenvalue \u03bb\u2082. Null if eigenvalues are complex (shown in bucket).',
+  im_lam:       'Imaginary part |Im(\u03bb)| when eigenvalues are complex. Zero for real eigenvalues.',
+  ev_arg:       'Argument of the complex eigenvalue: angle \u03b8 = atan2(|Im(\u03bb)|, Re(\u03bb)) in degrees, range (0\u00b0, 180\u00b0). Null for real-eigenvalue matrices. 90\u00b0 means tr = 0; \u03b8 near 0\u00b0 or 180\u00b0 means eigenvalue is near the real axis.',
+  ev_type:      'distinct: two different real eigenvalues. repeated: one repeated real eigenvalue. complex: conjugate pair a \u00b1 bi.',
+  sigma1:       'Largest singular value \u03c3\u2081: the longest semi-axis of the image ellipse of the unit circle.',
+  sigma2:       'Smallest singular value \u03c3\u2082: the shortest semi-axis. \u03c3\u2082 = 0 means the matrix is singular.',
+  spec_rad:     '\u03c1 = max|\u03bb|. Governs repeated application: \u03c1 < 1 converges, \u03c1 > 1 diverges, \u03c1 = 1 may orbit.',
+  inv_cond:     'Inverse condition number \u03c3\u2082/\u03c3\u2081. 1 = conformal (circle maps to circle, equal scaling in all directions). 0 = singular or degenerate.',
+  orient:       'preserving: det > 0 (keeps handedness). reversing: det < 0 (flips handedness). singular: det = 0.',
+  symmetric:    'b = c: the matrix equals its own transpose. Symmetric matrices always have real eigenvalues.',
+  orthogonal:   'M\u1d40M = I: preserves all distances and angles. Equivalent to det = \u00b11 and \u03c3\u2081 = \u03c3\u2082 = 1.',
+  nilp_idem:    'idempotent: M\u00b2 = M (projection, applying twice = once). nilpotent: M\u00b2 = 0 (two applications destroy everything). involution: M\u00b2 = I (its own inverse; integer involutions are almost all reflections).',
+};
+
+// Format a property value for display.
+// Returns '—' for null/undefined (e.g. complex eigenvalues).
+function fmtVal(v) {
+  if (v === null || v === undefined) return '\u2014';
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : v.toFixed(3);
+  return String(v);
+}
+
+
+// ── src/math.js ─────────────────────────────────────
+
+// ════════════════════════════════════════════════
+//  MATRIX GENERATION — data layer
+//
+//  Pure functions only. No DOM, no global state,
+//  no side effects. Could run in Node.js unchanged.
+//  Depends on: nothing.
+// ════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════
+//  MATRIX GENERATION
+// ════════════════════════════════════════════════
+
+function rng(seed) {
+  let s = ((seed * 1664525) ^ 0x5a5a5a5a) >>> 0;
+  return () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 0x100000000; };
+}
+
+function calcProps(a, b, c, d) {
+  const det = a*d - b*c;
+  const tr  = a + d;
+  const disc = tr*tr - 4*det;    // always an integer
+
+  let ev_type, lmin, lmax;
+  if (disc > 0) {
+    const sq = Math.sqrt(disc);
+    ev_type = 'distinct'; lmin = (tr - sq) / 2; lmax = (tr + sq) / 2;
+  } else if (disc === 0) {
+    ev_type = 'repeated'; lmin = lmax = tr / 2;
+  } else {
+    ev_type = 'complex'; lmin = lmax = null;
+  }
+
+  const frob_sq = a*a + b*b + c*c + d*d;
+  const rank    = det !== 0 ? 2 : (a||b||c||d) ? 1 : 0;
+
+  // Singular values: σ² = (‖M‖² ± √(‖M‖⁴ − 4det²)) / 2
+  const fdisc = frob_sq * frob_sq - 4 * det * det;  // always ≥ 0
+  const fsqrt = Math.sqrt(Math.max(0, fdisc));
+  const sigma1 = Math.sqrt((frob_sq + fsqrt) / 2);
+  const sigma2 = Math.sqrt(Math.max(0, (frob_sq - fsqrt) / 2));
+
+  // Eigenvalue imaginary part |Im(λ)| = √(−disc)/2 when complex, 0 otherwise
+  const im_lam = disc < 0 ? Math.sqrt(-disc) / 2 : 0;
+
+  // Spectral radius: |λ|² = det for complex (both same modulus), max|λ| for real
+  let spec_rad;
+  if (disc < 0) {
+    spec_rad = Math.sqrt(det);                           // det > 0 guaranteed when complex
+  } else {
+    const sq = Math.sqrt(disc);
+    spec_rad = Math.max(Math.abs(tr - sq), Math.abs(tr + sq)) / 2;
+  }
+
+  // Orthogonal: M^T M = I  ↔  columns are orthonormal
+  const orthogonal = (a*a+c*c===1 && b*b+d*d===1 && a*b+c*d===0) ? 'yes' : 'no';
+
+  // M² entries (needed for nilpotent/idempotent/involution checks)
+  const sq_aa = a*a+b*c, sq_ab = a*b+b*d, sq_ca = c*a+d*c, sq_dd = c*b+d*d;
+  const nilpotent  = sq_aa===0 && sq_ab===0 && sq_ca===0 && sq_dd===0;
+  const idempotent = sq_aa===a && sq_ab===b && sq_ca===c && sq_dd===d;
+  const involution = sq_aa===1 && sq_ab===0 && sq_ca===0 && sq_dd===1;
+  // Priority: nilpotent > idempotent > involution > neither.
+  // Note: I is both idempotent (I²=I) and an involution (I²=I), so it stays idempotent.
+  // −I is an involution only (not idempotent), so it is correctly labelled involution.
+  const nilp_idem  = nilpotent ? 'nilpotent' : idempotent ? 'idempotent'
+                   : involution ? 'involution' : 'neither';
+
+  return {
+    det, trace: tr,
+    spin: (c - b) / 2,
+    shear: (b + c) / 2,
+    diff_stretch: (a - d) / 2,
+    polar_angle: Math.atan2(c - b, a + d) * 180 / Math.PI,
+    frob_sq, rank: String(rank),
+    lmin, lmax, ev_type,
+    sigma1, sigma2, im_lam, spec_rad,
+    // Argument of the complex eigenvalue in degrees: atan2(|Im(λ)|, Re(λ)) ∈ (0°,180°).
+    // Null for real-eigenvalue matrices (complex eigenvalues have det>0 always,
+    // so real-eigenvalue matrices — both positive and negative det — go to the bucket).
+    ev_arg: ev_type === 'complex'
+      ? Math.atan2(im_lam, tr / 2) * 180 / Math.PI
+      : null,
+    // Inverse condition number σ₂/σ₁: 1 = conformal (circle→circle), 0 = singular.
+    // Zero matrix (sigma1=0) also returns 0; both degenerate cases share the floor.
+    inv_cond: sigma1 > 0 ? sigma2 / sigma1 : 0,
+    orthogonal, nilp_idem,
+    orient:    det > 0 ? 'preserving' : det < 0 ? 'reversing' : 'singular',
+    symmetric: b === c ? 'yes' : 'no',
+  };
+}
+
+const ENTRY_MAX = 3;
+
+function generateMats(emax) {
+  const vals = [];
+  for (let v = -emax; v <= emax; v++) vals.push(v);
+  const ms = []; let i = 0;
+  for (const a of vals) for (const b of vals)
+  for (const c of vals) for (const d of vals) {
+    const r = rng(i);
+    ms.push({ a, b, c, d, idx: i++, ...calcProps(a,b,c,d),
+              jx: r()*2-1, jy: r()*2-1, rx: r(), ry: r() });
+  }
+  return ms;
+}
+
+
+// ── src/presets.js ──────────────────────────────────
+
+// ════════════════════════════════════════════════
+//  PRESETS
+//
+//  Pure data — no dependencies on engine state.
+//  W and WP are local helpers for building HTML links.
+//  Edit this file to add, remove, or reword presets.
+// ════════════════════════════════════════════════
+
+const W  = (text, url) => `<a href="${url}" target="_blank" rel="noopener">${text}</a>`;
+const WP = t => `https://en.wikipedia.org/wiki/${t}`;
+
+const PRESET_GROUPS = [
+  { label: 'Getting started', presets: [
+
+    { label: 'Explore freely',
+      xk: 'none', yk: 'none', ck: 'orient',
+      text: `All 2401 integer matrices scattered at random, coloured by ${W('orientation',WP('Orientation_(vector_space)'))}: blue preserves handedness (det &gt; 0), red reverses it (det &lt; 0), grey is ${W('singular',WP('Invertible_matrix'))} (det = 0). Hover any dot to see how that matrix distorts the unit square.` },
+
+    { label: 'Determinant',
+      xk: 'det', yk: 'none', ck: 'orient',
+      text: `The ${W('determinant',WP('Determinant'))} is the signed area of the image of the unit square. Positive: orientation preserved. Negative: flipped inside-out. Zero: the plane collapses to a line or point. The dense cluster at det = 0 is striking.` },
+
+  ]},
+
+  { label: 'Eigenvalues', presets: [
+
+    { label: 'Trace and determinant',
+      xk: 'det', yk: 'trace', ck: 'ev_type',
+      text: `The ${W('trace',WP('Trace_(linear_algebra)'))} and ${W('determinant',WP('Determinant'))} are the two coefficients of the ${W('characteristic polynomial',WP('Characteristic_polynomial'))}. The dashed parabola (tr\u00b2 = 4\u00b7det) is the discriminant boundary: matrices to its right have complex ${W('eigenvalues',WP('Eigenvalues_and_eigenvectors'))} (spiralling or rotating behaviour); those to its left have real eigenvalues (stretching along fixed directions).` },
+
+    { label: 'Eigenvalues (real)',
+      xk: 'lmin', yk: 'lmax', ck: 'orient',
+      text: `When a matrix has real ${W('eigenvalues',WP('Eigenvalues_and_eigenvectors'))}, they come in a (smaller, larger) pair. Since \u03bb\u2082 \u2265 \u03bb\u2081 always, all points lie on or above the dashed diagonal. Matrices with complex eigenvalues have no real preferred stretch directions and collect in the bottom-left bucket.` },
+
+    { label: 'Eigenvalue type',
+      xk: 'ev_type', yk: 'none', ck: 'ev_type',
+      text: `Every real 2\u00d72 matrix falls into one of three ${W('eigenvalue',WP('Eigenvalues_and_eigenvectors'))} cases. Distinct real (green): two independent stretch directions. Repeated (orange): one direction, possibly with shear. Complex pair (purple): no real preferred direction, so the transformation rotates or spirals. Complex eigenvalues only occur when det &gt; 0.` },
+
+    { label: 'Eigenvalue plane',
+      xk: 'trace', yk: 'im_lam', ck: 'ev_type',
+      text: `For complex eigenvalues \u03bb = a \u00b1 bi: the real part a = tr/2 sits on the x-axis, and the imaginary part b = |Im(\u03bb)| is the y-height. Real-eigenvalue matrices sit on the bottom edge (b = 0). The real part controls growth or decay; the imaginary part controls rotational frequency. See ${W('eigenvalues and eigenvectors',WP('Eigenvalues_and_eigenvectors'))}.` },
+
+    { label: 'Eigenvalue polar form',
+      xk: 'ev_arg', yk: 'spec_rad', ck: 'polar_angle',
+      text: `A complex eigenvalue \u03bb = r\u00b7e<sup>i\u03b8</sup> has modulus r (the ${W('spectral radius',WP('Spectral_radius'))}, equal to \u221adet for complex-eigenvalue matrices) and ${W('argument',WP('Argument_(complex_analysis)'))} \u03b8 \u2208 (0\u00b0, 180\u00b0). The dashed horizontal marks r = 1: repeated application neither grows nor shrinks. The dashed vertical marks \u03b8 = 90\u00b0 (zero trace). Coloured by ${W('polar decomposition',WP('Polar_decomposition'))} angle, which closely tracks \u03b8 for near-rotation matrices. Real-eigenvalue matrices collect in the left bucket.` },
+
+  ]},
+
+  { label: 'Decomposition', presets: [
+
+    { label: 'Spin and shear',
+      xk: 'spin', yk: 'shear', ck: 'symmetric',
+      text: `Any matrix splits into four additive components; this view shows two off-diagonal ones. Spin = (c\u2212b)/2 measures pure rotation. Shear = (b+c)/2 measures skewing. ${W('Symmetric matrices',WP('Symmetric_matrix'))} (b = c) have zero spin and lie on the y-axis. ${W('Antisymmetric matrices',WP('Skew-symmetric_matrix'))} (b = \u2212c) have zero shear and lie on the x-axis.` },
+
+    { label: 'Diagonal components',
+      xk: 'diff_stretch', yk: 'trace', ck: 'ev_type',
+      text: `The companion to spin/shear, showing the two diagonal components. Together all four give a complete additive decomposition of any 2\u00d72 real matrix. The four basis matrices are the real analogues of the ${W('Pauli matrices',WP('Pauli_matrices'))} and correspond to the four grade components of ${W('2D geometric algebra',WP('Geometric_algebra'))}.` },
+
+    { label: 'Polar decomposition',
+      xk: 'polar_angle', yk: 'det', ck: 'orient',
+      text: `The ${W('polar decomposition',WP('Polar_decomposition'))} writes any invertible matrix as M = RS: a rotation/reflection R followed by a symmetric positive stretch S. The angle of R (plotted on x) is \u03b8 = atan2(c\u2212b, a+d). Dashed lines mark det = 1 (area-preserving), det = \u22121 (orientation-reversing with unit area), and det = 0 (singular).` },
+
+  ]},
+
+  { label: 'Norms and scaling', presets: [
+
+    { label: 'Stretch factors (singular values)',
+      xk: 'sigma1', yk: 'sigma2', ck: 'orient',
+      text: `Any matrix maps the unit circle to an ellipse; \u03c3\u2081 and \u03c3\u2082 are its semi-axes. ${W('Singular values',WP('Singular_value_decomposition'))} are always real and non-negative. Since \u03c3\u2082 \u2264 \u03c3\u2081 always, all points lie on or below the dashed diagonal. Points on the diagonal are conformal maps, which scale every direction equally. Singular matrices (\u03c3\u2082 = 0) collapse the ellipse to a line segment.` },
+
+    { label: 'Condition number',
+      xk: 'sigma1', yk: 'inv_cond', ck: 'orient',
+      text: `The inverse ${W('condition number',WP('Condition_number'))} \u03c3\u2082/\u03c3\u2081 measures how far a matrix is from singular: 1 means the unit circle maps to a circle (conformal); 0 means it collapses to a line. Paired with \u03c3\u2081, it separates overall scale from distortion. The dashed line at \u03c3\u2082/\u03c3\u2081 = 1 marks conformal matrices.` },
+
+    { label: 'Spectral radius',
+      xk: 'spec_rad', yk: 'none', ck: 'orient',
+      text: `The ${W('spectral radius',WP('Spectral_radius'))} \u03c1 = max|\u03bb| governs repeated application: \u03c1 &lt; 1 converges to zero, \u03c1 &gt; 1 diverges, \u03c1 = 1 may orbit. Very few of the 2401 integer matrices satisfy \u03c1 \u2264 1.` },
+
+    { label: 'Frobenius norm',
+      xk: 'none', yk: 'frob_sq', ck: 'orient',
+      text: `The squared ${W('Frobenius norm',WP('Matrix_norm#Frobenius_norm'))} \u2016M\u2016\u00b2 = a\u00b2 + b\u00b2 + c\u00b2 + d\u00b2 is the sum of squared entries, equal to \u03c3\u2081\u00b2 + \u03c3\u2082\u00b2. The zero matrix is the unique point at \u2016M\u2016\u00b2 = 0.` },
+
+    { label: 'Determinant and norm',
+      xk: 'det', yk: 'frob_sq', ck: 'ev_type',
+      text: `The dashed V-boundary marks \u2016M\u2016\u00b2 = 2|det|: the tightest possible norm for a given |det|, reached only by conformal maps (\u03c3\u2081 = \u03c3\u2082). All other matrices lie strictly above it by the AM-GM inequality. The ${W('determinant',WP('Determinant'))} gives overall area scaling; the ${W('Frobenius norm',WP('Matrix_norm#Frobenius_norm'))} gives total entry energy.` },
+
+  ]},
+
+  { label: 'Notable matrices', presets: [
+
+    { label: 'Projections, nilpotents and reflections',
+      xk: 'trace', yk: 'det', ck: 'nilp_idem',
+      text: `Three families defined by squaring. ${W('Idempotents',WP('Idempotent_matrix'))} M\u00b2 = M (blue): applying twice equals applying once, so they project onto a subspace. ${W('Nilpotents',WP('Nilpotent_matrix'))} M\u00b2 = 0 (red): two applications destroy everything. ${W('Involutions',WP('Involution_(mathematics)'))} M\u00b2 = I (green): the matrix is its own inverse. Almost all integer involutions are reflections, clustering at trace = 0, det = \u22121.` },
+
+  ]},
+];
+
+const PRESETS = [{ label: '\u2014 choose a view \u2014', xk: null, yk: null, ck: null, text: '' }];
+for (const g of PRESET_GROUPS) for (const p of g.presets) PRESETS.push(p);
+
+
+// ── src/params.js ───────────────────────────────────
+
+// ════════════════════════════════════════════════
+//  PARAMS — tunable layout and rendering constants
+//
+//  Each entry carries metadata for the sidebar slider:
+//    value      current value (also the default)
+//    min/max    slider range
+//    step       slider step size
+//    label      short name shown in sidebar
+//    tooltip    explanation of what the parameter does
+//    recompute  true  → slider change triggers computePos()
+//               false → slider change triggers drawAll() only
+//
+//  Loaded before app.js so layout functions can read from here.
+// ════════════════════════════════════════════════
+
+const PARAMS = {
+  dotRadius: {
+    value: 3, min: 1, max: 12, step: 0.5,
+    label:   'Dot radius (px)',
+    tooltip: 'Visual size of each dot. Larger dots are easier to hover but obscure dense regions.',
+    recompute: false,
+  },
+  overlapFactor: {
+    value: 2.3, min: 1.0, max: 5.0, step: 0.1,
+    label:   'Overlap margin',
+    tooltip: 'Minimum centre-to-centre distance between dots, as a multiple of dot radius. '
+           + 'Higher values spread dots further apart; lower values allow more overlap.',
+    recompute: true,
+  },
+  jitter: {
+    value: 0.6, min: 0, max: 2.0, step: 0.05,
+    label:   'Jitter',
+    tooltip: 'Random lateral offset added to each dot along its real axis. '
+           + 'Helps spread dots with identical values; set to 0 for strict column alignment.',
+    recompute: true,
+  },
+  springK: {
+    value: 0.018, min: 0.002, max: 0.08, step: 0.002,
+    label:   'Spring strength',
+    tooltip: 'How strongly each dot is pulled back toward its data-correct position during layout. '
+           + 'Higher values keep dots closer to their true axis positions but may cause jitter.',
+    recompute: true,
+  },
+  simIters: {
+    value: 220, min: 50, max: 500, step: 10,
+    label:   'Sim iterations',
+    tooltip: 'Number of force-layout steps run each time positions are recomputed. '
+           + 'More iterations give cleaner layouts but take longer; useful to reduce while tuning.',
+    recompute: true,
+  },
+  animMs: {
+    value: 800, min: 100, max: 2000, step: 100,
+    label:   'Animation (ms)',
+    tooltip: 'Duration of the transition animation when switching axes or presets.',
+    recompute: false,
+  },
+};
+
+
+// ── src/app.js ──────────────────────────────────────
+
+// ════════════════════════════════════════════════
+//  APP — engine and interaction layer
+//
+//  Owns all mutable state. Three main areas:
+//  - Viewport: vp, viewportLimits, vpZoom/Pan/Reset
+//  - Layout engine: computePos() — sole writer of curPos
+//  - Interaction and UI: event handlers, sidebar, init
+//
+//  LAYER RULE: interaction handlers update vp and PARAMS
+//  only. They never write to curPos. computePos() and
+//  animateTo()/animTick() are the only writers of curPos.
+//
+//  Depends on: properties.js, math.js, presets.js, params.js
+// ════════════════════════════════════════════════
+
+const MATS = generateMats(ENTRY_MAX);
+
+// ════════════════════════════════════════════════
+//  LAYOUT
+//
+//  computeLayout() is the single source of truth for
+//  canvas geometry. Called at the start of computePos()
+//  and drawAll(); result stored in `layout`.
+//
+//  layout = { plot: {x,y,w,h}, cw, ch }
+// ════════════════════════════════════════════════
+
+let layout = null;
+
+function computeLayout() {
+  const dpr     = window.devicePixelRatio || 1;
+  const cw      = cv.width  / dpr;
+  const ch      = cv.height / dpr;
+  const leftPad = P[selY.value]?.type === 'cat' ? 88 : 62;
+  return {
+    plot: { x: leftPad, y: PAD.top, w: cw - leftPad - PAD.right, h: ch - PAD.top - PAD.bot },
+    cw, ch,
+  };
+}
+
+// ════════════════════════════════════════════════
+//  VIEWPORT (data-space zoom and pan)
+//
+//  vp stores the visible data range for each numeric axis.
+//  null means "full property range".
+//
+//  Categorical and 'none' axes are never zoomed — their
+//  visual positions are always computed from the full range.
+//
+//  viewportLimits(key, isX) is the single accessor used by
+//  both positioning (this file) and drawing (drawing.js).
+//
+//  Interaction handlers only call vpZoom/vpPan/vpInit and
+//  then drawAll(). They never touch curPos.
+// ════════════════════════════════════════════════
+
+let vp = { xMin: null, xMax: null, yMin: null, yMax: null };
+
+function vpAxisActive(isX) {
+  const p = P[isX ? selX.value : selY.value];
+  return p && p.type !== 'cat' && p.type !== 'none';
+}
+
+// Current visible limits for a property key (viewport or full property range).
+// Used by positioning (normalToScreen) and drawing (drawAxisDecor).
+function viewportLimits(key, isX) {
+  const p = P[key];
+  if (!p || p.type === 'cat' || p.type === 'none') return { min: p?.min, max: p?.max };
+  const vpMin = isX ? vp.xMin : vp.yMin;
+  const vpMax = isX ? vp.xMax : vp.yMax;
+  if (vpMin === null) return { min: p.min, max: p.max };
+  return { min: vpMin, max: vpMax };
+}
+
+function vpInit() {
+  const xp = P[selX.value], yp = P[selY.value];
+  vp.xMin = (xp?.type !== 'cat' && xp?.type !== 'none') ? xp.min : null;
+  vp.xMax = (xp?.type !== 'cat' && xp?.type !== 'none') ? xp.max : null;
+  vp.yMin = (yp?.type !== 'cat' && yp?.type !== 'none') ? yp.min : null;
+  vp.yMax = (yp?.type !== 'cat' && yp?.type !== 'none') ? yp.max : null;
+}
+
+function vpIsDefault() {
+  const xp = P[selX.value], yp = P[selY.value];
+  return (vp.xMin === null || (vp.xMin === xp?.min && vp.xMax === xp?.max)) &&
+         (vp.yMin === null || (vp.yMin === yp?.min && vp.yMax === yp?.max));
+}
+
+function vpZoom(factor, cx, cy) {
+  const { plot } = layout;
+  if (vpAxisActive(true)) {
+    const { min, max } = viewportLimits(selX.value, true);
+    const range = max - min;
+    const frac  = (cx - plot.x) / plot.w;
+    const pivot = min + frac * range;
+    const nr    = Math.max(range * 0.02, range / factor);
+    const xp    = P[selX.value];
+    const guard = xp.max - xp.min;
+    vp.xMin = Math.max(xp.min - guard, pivot - frac * nr);
+    vp.xMax = Math.min(xp.max + guard, pivot + (1 - frac) * nr);
+  }
+  if (vpAxisActive(false)) {
+    const { min, max } = viewportLimits(selY.value, false);
+    const range = max - min;
+    const frac  = (plot.y + plot.h - cy) / plot.h;
+    const pivot = min + frac * range;
+    const nr    = Math.max(range * 0.02, range / factor);
+    const yp    = P[selY.value];
+    const guard = yp.max - yp.min;
+    vp.yMin = Math.max(yp.min - guard, pivot - frac * nr);
+    vp.yMax = Math.min(yp.max + guard, pivot + (1 - frac) * nr);
+  }
+}
+
+function vpPan(dx, dy) {
+  const { plot } = layout;
+  if (vpAxisActive(true) && vp.xMin !== null) {
+    const shift = dx / plot.w * (vp.xMax - vp.xMin);
+    vp.xMin -= shift;
+    vp.xMax -= shift;
+    // Clamp: for bucket properties, hard stop at data min so numeric dots
+    // can't pan into the categorical bucket region. For all properties,
+    // limit overpan to half a viewport width at each edge.
+    const xp = P[selX.value], xrange = vp.xMax - vp.xMin;
+    const xpad = xp.bkt ? 0 : xrange * 0.5;
+    if (vp.xMin < xp.min - xpad) { vp.xMin = xp.min - xpad; vp.xMax = vp.xMin + xrange; }
+    if (vp.xMax > xp.max + xrange * 0.5) { vp.xMax = xp.max + xrange * 0.5; vp.xMin = vp.xMax - xrange; }
+  }
+  if (vpAxisActive(false) && vp.yMin !== null) {
+    const shift = dy / plot.h * (vp.yMax - vp.yMin);
+    vp.yMin += shift;
+    vp.yMax += shift;
+    const yp = P[selY.value], yrange = vp.yMax - vp.yMin;
+    const ypad = yp.bkt ? 0 : yrange * 0.5;
+    if (vp.yMin < yp.min - ypad) { vp.yMin = yp.min - ypad; vp.yMax = vp.yMin + yrange; }
+    if (vp.yMax > yp.max + yrange * 0.5) { vp.yMax = yp.max + yrange * 0.5; vp.yMin = vp.yMax - yrange; }
+  }
+}
+
+// ════════════════════════════════════════════════
+//  NORMALISED COORDINATES
+//
+//  curPos stores {tx, ty}: viewport-independent fractions
+//  of the FULL property range. The rendering layer maps
+//  these to canvas pixels via normalToScreen() in drawing.js.
+//
+//  This means:
+//  - Interaction handlers update vp, then call drawAll().
+//    Dots appear to move because normalToScreen re-maps
+//    through the new vp — no positions recomputed.
+//  - computePos() is the sole writer of curPos.
+//  - Force layout and bee-swarm run in pixel space internally
+//    (collision distances are in pixels), then convert output
+//    to normalised coordinates before storing.
+//
+//  Special values:
+//  - BKT_SENTINEL: stored for bucket dots (null eigenvalues).
+//    normalToScreen places these at a fixed position in the
+//    bucket region regardless of pan/zoom.
+//  - For 'none' and 'cat' axes: t is a plain fraction [0,1]
+//    with no viewport mapping applied.
+// ════════════════════════════════════════════════
+
+const BKT_SENTINEL = -1;  // flag value in tx/ty for bucket dots
+
+// Convert a normalised tx (or ty) back to a canvas pixel on one axis.
+// Used internally by computePos (warm-start initialisation) and
+// by findNearest (hit detection in screen space).
+//
+// t encoding:
+//   t === BKT_SENTINEL:    unpositioned bucket dot → place at bucket centre
+//   t < 0 and p.bkt:       positioned bucket dot  → pixel = (-t) * axisLen
+//   t >= 0 (or no bucket): numeric dot            → viewport-mapped normally
+//
+// IMPORTANT: negative t for non-bucket properties (numeric dot off-screen) falls
+// through to normal viewport mapping, giving a correctly negative pixel position
+// that the canvas clip rect suppresses. Never add a bucket path for non-bkt axes.
+function normToPixel(t, key, isX, axisLen, axisStart, flipY) {
+  if (t === BKT_SENTINEL) {
+    const mid = BKT_GAP + (BKT_FRAC - 2 * BKT_GAP) / 2;
+    const px  = axisStart + mid * axisLen;
+    return flipY ? axisStart + axisLen - (px - axisStart) : px;
+  }
+  const p = P[key];
+  if (p.type === 'none' || p.type === 'cat') {
+    return flipY ? axisStart + axisLen - t * axisLen : axisStart + t * axisLen;
+  }
+  if (t < 0 && p.bkt) {
+    // Positioned bucket dot: pixel encoded as (-t) * axisLen by result conversion
+    const px = axisStart + (-t) * axisLen;
+    return flipY ? axisStart + axisLen - (px - axisStart) : px;
+  }
+  // Numeric: map from full-property fraction through viewport.
+  // Negative t here (non-bucket or off-screen numeric) falls through correctly.
+  const { min: propMin, max: propMax } = getEffectiveLimits(key);
+  const { min: vpMin,   max: vpMax   } = viewportLimits(key, isX);
+  const dataVal = propMin + t * (propMax - propMin);
+  const vpT     = (dataVal - vpMin) / (vpMax - vpMin);
+  const screenT = p.bkt
+    ? (BKT_FRAC + BKT_GAP) + vpT * (1 - BKT_FRAC - BKT_GAP)
+    : AXIS_MARGIN + vpT * (1 - 2 * AXIS_MARGIN);
+  const px = axisStart + screenT * axisLen;
+  return flipY ? axisStart + axisLen - (px - axisStart) : px;
+}
+
+// Compute the normalised t value for a data value on a given property axis.
+// Result is a fraction of the FULL property range — viewport-independent.
+// BKT_SENTINEL is returned for bucket (null) values.
+function dataNorm(key, m, isX) {
+  const p = P[key];
+  const v = m[key];
+
+  if (p.type === 'none')  return isX ? m.rx : m.ry;
+  if (p.type === 'cat')   return (p.cats.indexOf(String(v)) + 0.5) / p.cats.length;
+  if (p.bkt && v === null) return BKT_SENTINEL;
+
+  const propMin = p.min, propMax = p.max;
+  return (v - propMin) / (propMax - propMin);  // unclamped; off-screen → outside [0,1]
+}
+
+// Jitter amount for a normalised position on a given axis type.
+function jitterScale(key, m, isX, jScale) {
+  const p  = P[key];
+  const j  = isX ? m.jx : m.jy;
+  const { min, max } = getEffectiveLimits(key);
+  if (p.type === 'disc') return j / (max - min + 1) * 0.42 * jScale;
+  if (p.type === 'cat')  return j / p.cats.length   * 0.42 * jScale;
+  if (p.type === 'cont') return j * 0.012 * jScale;
+  return 0;
+}
+
+// ════════════════════════════════════════════════
+//  CANVAS & STATE
+// ════════════════════════════════════════════════
+
+const cv  = document.getElementById('plot');
+const ctx = cv.getContext('2d');
+const tip = document.getElementById('tip');
+const selX      = document.getElementById('sel-x');
+const selY      = document.getElementById('sel-y');
+const selC      = document.getElementById('sel-c');
+const selPreset  = document.getElementById('sel-preset');
+const presetText = document.getElementById('preset-text');
+
+let hovIdx    = -1;
+let pinnedIdx = -1;   // -1 = nothing pinned; >= 0 = tooltip locked to this matrix
+let curPos    = null;   // { [idx]: {tx,ty} } — normalised coords, viewport-independent
+let curPosXk    = 'none'; // axis key that curPos.tx was computed for; needed to map old positions
+let curPosYk    = 'none'; // axis key that curPos.ty was computed for; to screen on axis change
+let curPosPlotW = 0;      // plot pixel width  when curPos was computed; detects resize vs zoom
+let curPosPlotH = 0;      // plot pixel height when curPos was computed; (bucket bounds scale with dims)
+let animScreen = null;  // { [idx]: {px,py} } — interpolated screen positions during animation;
+                        // null when settled. Reading layer uses this during animation instead
+                        // of mapping curPos through toScreen(), which gives wrong results mid-transition.
+let anim      = null;   // null | { fromScreen, t0 }
+let drag           = null;   // null | { startX, startY, startVP, moved }
+let wasJustDragging = false; // carry drag state across pointerup → click boundary
+let zoomTimer      = null;   // debounce handle for post-scroll layout recompute
+
+function ease(t) { return t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t; }
+
+function sizeCanvas() {
+  const wrap = document.getElementById('plot-wrap');
+  const dpr  = window.devicePixelRatio || 1;
+  // clientWidth/clientHeight can be 0 if CSS flexbox hasn't painted yet (race condition
+  // on first load). Fall back to window dimensions minus sidebar so physics never divides by zero.
+  const w = wrap.clientWidth  || (window.innerWidth  - 270);
+  const h = wrap.clientHeight || window.innerHeight;
+  cv.width  = w * dpr;
+  cv.height = h * dpr;
+  cv.style.width  = w + 'px';
+  cv.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// ════════════════════════════════════════════════
+//  LAYOUT ENGINE
+//
+//  computePos() is the sole producer of curPos.
+//  It works internally in pixel space (collision distances
+//  are in pixels) but converts output to normalised coords.
+//
+//  Warm start: when recomputing after a zoom, the force
+//  layout uses the existing curPos positions (mapped to the
+//  new viewport's pixel space) as initial conditions. This
+//  prevents dots from swapping relative positions on zoom.
+// ════════════════════════════════════════════════
+
+function computePos() {
+  layout = computeLayout();
+  const { plot } = layout;
+  const xk = selX.value, yk = selY.value;
+  const xNone = xk === 'none', yNone = yk === 'none';
+
+  // axesMatch: same axes as when curPos was computed → warm start is valid.
+  // dimsMatch: additionally, same canvas dimensions → bucket pixel bounds unchanged,
+  //   so bucket dot positions are stable and don't need re-simulation.
+  //   (Zoom is viewport-only and leaves plot dimensions intact; resize changes them.)
+  const axesMatch = (curPosXk === xk) && (curPosYk === yk);
+  const dimsMatch = axesMatch && layout.plot.w === curPosPlotW && layout.plot.h === curPosPlotH;
+
+  // Include dots within 100% of the visible range beyond each edge so they
+  // have positions before scrolling into view (prevents pop-in).
+  function inViewport(m) {
+    if (!xNone && vpAxisActive(true) && vp.xMin !== null) {
+      const margin = vp.xMax - vp.xMin;
+      const v = m[xk];
+      if (v !== null && (v < vp.xMin - margin || v > vp.xMax + margin)) return false;
+    }
+    if (!yNone && vpAxisActive(false) && vp.yMin !== null) {
+      const margin = vp.yMax - vp.yMin;
+      const v = m[yk];
+      if (v !== null && (v < vp.yMin - margin || v > vp.yMax + margin)) return false;
+    }
+    return true;
+  }
+  const visMats = MATS.filter(inViewport);
+
+  // Helper: pixel position for a matrix on an axis (used for force-layout targets).
+  // Categorical and 'none' axes: dataNorm already returns a plain [0,1] fraction.
+  // Numeric axes: convert through the current viewport.
+  // Bucket dots get spread targets within the bucket area (rather than all sharing
+  // the same centre) so the force layout can give them distinct stable positions.
+  function toTargetPx(key, m, isX, len) {
+    const p = P[key];
+    const t = dataNorm(key, m, isX);
+    if (t === BKT_SENTINEL) {
+      // Spread across the usable bucket width using per-matrix random value
+      const spread = isX ? m.rx : m.ry;
+      return (BKT_GAP + spread * (BKT_FRAC - 2 * BKT_GAP)) * len;
+    }
+    if (p.type === 'none' || p.type === 'cat') return t * len;
+    const { min: propMin, max: propMax } = getEffectiveLimits(key);
+    const { min: vpMin,   max: vpMax   } = viewportLimits(key, isX);
+    const dataVal = propMin + t * (propMax - propMin);
+    const vpT = (dataVal - vpMin) / (vpMax - vpMin);
+    const st = p.bkt
+      ? (BKT_FRAC + BKT_GAP) + vpT * (1 - BKT_FRAC - BKT_GAP)
+      : AXIS_MARGIN + vpT * (1 - 2 * AXIS_MARGIN);
+    return st * len;
+  }
+
+  // Normalise a pixel position back to a fraction of the full property range.
+  function pixToNorm(px, key, isX, axisLen) {
+    const p = P[key];
+    if (p.type === 'none' || p.type === 'cat') return px / axisLen;
+    // Pure numeric inversion — bucket dots are stored explicitly by callers
+    // (checking m[key] === null), not auto-detected here. This prevents numeric
+    // dots pushed near px=0 by force layout from being misidentified as bucket dots.
+    const { min: vpMin, max: vpMax } = viewportLimits(key, isX);
+    const { min: propMin, max: propMax } = getEffectiveLimits(key);
+    const st  = px / axisLen;
+    const vpT = p.bkt
+      ? (st - (BKT_FRAC + BKT_GAP)) / (1 - BKT_FRAC - BKT_GAP)
+      : (st - AXIS_MARGIN) / (1 - 2 * AXIS_MARGIN);
+    const dataVal = vpMin + vpT * (vpMax - vpMin);
+    // Clamp to ≥ 0 ONLY for bucket properties: normToPixel detects bucket dots by
+    // t < 0 && p.bkt, so a numeric dot on a bucket axis pushed off the left edge
+    // must not store a negative t or normToPixel would treat it as a bucket dot.
+    // Non-bucket properties (im_lam, det, trace, etc.) can store negative t safely —
+    // normToPixel's bucket branch requires p.bkt, so negative t just means
+    // "slightly off-screen below the property minimum", which is fine.
+    const norm = (dataVal - propMin) / (propMax - propMin);
+    return p.bkt ? Math.max(0, norm) : norm;
+  }
+
+  // ── 2D scatter ───────────────────────────────
+  if (!xNone && !yNone) {
+    const targets = {};
+    for (const m of visMats) {
+      targets[m.idx] = {
+        px: plot.x + toTargetPx(xk, m, true,  plot.w),
+        py: plot.y + plot.h - toTargetPx(yk, m, false, plot.h),
+      };
+    }
+    // Only warm-start if the axes match — on axis change, old positions map
+    // to completely wrong locations and would prevent proper convergence.
+    const pxResult = forceLayout(visMats, targets, PARAMS.dotRadius.value, axesMatch ? curPos : null);
+    const result = {};
+    for (const m of visMats) {
+      const { px, py } = pxResult[m.idx];
+      const isBktX = P[xk].bkt && m[xk] === null;
+      const isBktY = P[yk].bkt && m[yk] === null;
+      // Bucket dots whose positions are fully viewport-independent on all active axes:
+      // preserve existing curPos when only the viewport has changed (dimsMatch).
+      // Re-simulating them adds non-deterministic drift without any correctness benefit.
+      if (dimsMatch && curPos?.[m.idx] && isBktX && isBktY) {
+        result[m.idx] = curPos[m.idx];
+        continue;
+      }
+      result[m.idx] = {
+        tx: isBktX ? -(px - plot.x) / plot.w : pixToNorm(px - plot.x,         xk, true,  plot.w),
+        ty: isBktY ? -(plot.y + plot.h - py) / plot.h : pixToNorm(plot.y + plot.h - py, yk, false, plot.h),
+      };
+    }
+    return result;
+  }
+
+  // ── 1D bee-swarm ─────────────────────────────
+  if (!xNone || !yNone) {
+    const isXReal = !xNone;
+    const realKey = isXReal ? xk : yk;
+    const secLen  = isXReal ? plot.h : plot.w;
+    const centre  = secLen / 2;
+    const D       = PARAMS.dotRadius.value * PARAMS.overlapFactor.value;
+
+    const withMain = visMats.map(m => {
+      let mainPx = toTargetPx(realKey, m, isXReal, isXReal ? plot.w : plot.h);
+      mainPx += jitterScale(realKey, m, isXReal, PARAMS.jitter.value) * (isXReal ? plot.w : plot.h);
+      // Safety clamp: jitter could theoretically push a bucket dot to a negative pixel
+      // position, causing the same sign-flip encoding bug as in the 2D force layout.
+      if (P[realKey].bkt && m[realKey] === null) {
+        const bMax = (BKT_FRAC - BKT_GAP) * (isXReal ? plot.w : plot.h);
+        if (mainPx < PARAMS.dotRadius.value) mainPx = PARAMS.dotRadius.value;
+        if (mainPx > bMax - PARAMS.dotRadius.value) mainPx = bMax - PARAMS.dotRadius.value;
+      }
+      return { m, mainPx };
+    });
+    withMain.sort((a, b) => a.mainPx - b.mainPx);
+
+    // Warm start: if axes match, use previous secondary offsets as hints so dots
+    // maintain their relative positions on zoom. On axis change, skip warm start
+    // entirely — old secondary offsets are meaningless for the new axis mapping.
+    const prevSecOff = {};
+    if (axesMatch && curPos) {
+      for (const { m } of withMain) {
+        const prev = curPos[m.idx];
+        if (!prev) continue;
+        // Secondary axis is always 'none' in 1D mode, so normToPixel reduces to
+        // simple fractions. isXReal: ty stored as 1-s/h → pixel offset = (1-ty)*h.
+        const prevSec = isXReal
+          ? ((1 - prev.ty) * plot.h) - centre
+          : (prev.tx * plot.w) - centre;
+        prevSecOff[m.idx] = prevSec;
+      }
+    }
+
+    const placed  = [];
+    const secOff  = {};
+    // Limit secondary displacement to 45% of available space so dots don't
+    // form lines that run off-screen. Dots beyond this limit overlap rather
+    // than scrolling off, which is less confusing to read.
+    const MAX_SEC = secLen * 0.45;
+    for (const { m, mainPx } of withMain) {
+      const nearby = placed.filter(p => Math.abs(p.mainPx - mainPx) < D);
+      if (!nearby.length) {
+        placed.push({ mainPx, secOff: 0 });
+        secOff[m.idx] = 0;
+        continue;
+      }
+      const cands = [0];
+      if (prevSecOff[m.idx] !== undefined) cands.push(prevSecOff[m.idx]);
+      for (const p of nearby) {
+        const dx    = mainPx - p.mainPx;
+        const reach = Math.sqrt(Math.max(0, D*D - dx*dx));
+        cands.push(p.secOff + reach, p.secOff - reach);
+      }
+      // Filter candidates to within MAX_SEC before sorting by proximity to centre
+      const inRange = cands.filter(c => Math.abs(c) <= MAX_SEC);
+      const pool = inRange.length ? inRange : cands;
+      pool.sort((a, b) => Math.abs(a) - Math.abs(b));
+      let best = pool[pool.length - 1];
+      for (const c of pool) {
+        const ok = nearby.every(p => {
+          const dx = mainPx - p.mainPx, dy = c - p.secOff;
+          return dx*dx + dy*dy >= D*D - 0.1;
+        });
+        if (ok) { best = c; break; }
+      }
+      placed.push({ mainPx, secOff: best });
+      secOff[m.idx] = best;
+    }
+
+    const result = {};
+    for (const { m, mainPx } of withMain) {
+      const s = centre + (secOff[m.idx] ?? 0);
+      const isBkt = P[realKey].bkt && m[realKey] === null;
+      // Same rationale as 2D: bucket positions are viewport-independent in 1D too.
+      if (dimsMatch && curPos?.[m.idx] && isBkt) {
+        result[m.idx] = curPos[m.idx];
+        continue;
+      }
+      const mainNorm = isBkt
+        ? -(mainPx / (isXReal ? plot.w : plot.h))
+        : (isXReal
+            ? pixToNorm(mainPx, xk, true,  plot.w)
+            : pixToNorm(mainPx, yk, false, plot.h));
+      result[m.idx] = {
+        tx: isXReal ? mainNorm : (s / plot.w),
+        ty: isXReal ? (1 - s / plot.h) : mainNorm,
+      };
+    }
+    return result;
+  }
+
+  // ── Both axes None (random scatter) ─────────
+  return MATS.reduce((acc, m) => {
+    acc[m.idx] = { tx: m.rx, ty: m.ry };
+    return acc;
+  }, {});
+}
+
+// Converts the current VISUAL positions to screen pixels.
+// When mid-animation, uses animScreen (the interpolated positions the user
+// actually sees). When settled, maps curPos through normToPixel.
+// Always call this BEFORE changing selX/selY or vp.
+function captureScreenPos() {
+  if (!layout) return {};
+  const { plot } = layout;
+  const result = {};
+  for (const m of MATS) {
+    if (animScreen?.[m.idx]) {
+      result[m.idx] = { ...animScreen[m.idx] };
+    } else {
+      const pos = curPos?.[m.idx];
+      if (!pos) continue;
+      result[m.idx] = {
+        px: normToPixel(pos.tx, curPosXk, true,  plot.w, plot.x, false),
+        py: normToPixel(pos.ty, curPosYk, false, plot.h, plot.y, true),
+      };
+    }
+  }
+  return result;
+}
+
+// Called at the end of computePos to record which axis keys produced the result.
+function recordCurPosAxes() {
+  curPosXk    = selX.value;
+  curPosYk    = selY.value;
+  curPosPlotW = layout.plot.w;
+  curPosPlotH = layout.plot.h;
+}
+
+function animateTo(targetPos, fromScreen) {
+  // fromScreen: screen-pixel positions to animate FROM (captured before axis/vp change).
+  // If not provided (e.g. zoom repack), capture current positions now.
+  if (!fromScreen) fromScreen = captureScreenPos();
+  curPos = targetPos;        // settled normalised positions — set immediately
+  recordCurPosAxes();        // record the axes targetPos was computed for
+  anim = { fromScreen, t0: performance.now() };
+  requestAnimationFrame(animTick);
+}
+
+function animTick(now) {
+  if (!anim) return;
+  const t = Math.min((now - anim.t0) / PARAMS.animMs.value, 1);
+  const e = ease(t);
+  const { plot } = layout;
+  const next = {};
+  for (const m of MATS) {
+    const pos = curPos[m.idx];
+    if (!pos) continue;
+    const toPx = normToPixel(pos.tx, selX.value, true,  plot.w, plot.x, false);
+    const toPy = normToPixel(pos.ty, selY.value, false, plot.h, plot.y, true);
+    const from = anim.fromScreen[m.idx];
+    next[m.idx] = from
+      ? { px: from.px + (toPx - from.px) * e, py: from.py + (toPy - from.py) * e }
+      : { px: toPx, py: toPy };
+  }
+  animScreen = next;
+  drawAll();
+  if (t >= 1) { animScreen = null; anim = null; }
+  else requestAnimationFrame(animTick);
+}
+
+// ════════════════════════════════════════════════
+//  FORCE LAYOUT (2D scatter)
+//
+//  Warm start: prevNormPos, if provided, maps existing
+//  normalised positions to the current viewport's pixel
+//  space as initial conditions. Always used unconditionally
+//  when provided — callers are responsible for passing null
+//  when axes have changed (see axesMatch check in computePos).
+//  No pixel-distance threshold is applied; the spring will
+//  naturally pull any misplaced dot to its target.
+// ════════════════════════════════════════════════
+
+function forceLayout(all, targets, dotR, prevNormPos) {
+  const { plot } = layout;
+  const D     = dotR * PARAMS.overlapFactor.value;
+  const ITERS = PARAMS.simIters.value;
+  const K_SPR = PARAMS.springK.value;
+  const n     = all.length;
+  const ids   = all.map(m => m.idx);
+  const px    = new Float32Array(n), py = new Float32Array(n);
+  const tx    = new Float32Array(n), ty = new Float32Array(n);
+
+  // Bucket boundary arrays: flag which dots must stay inside bucket regions,
+  // and pre-compute the pixel limits for those regions.
+  const isBktX = new Uint8Array(n), isBktY = new Uint8Array(n);
+  const xk = selX.value, yk = selY.value;
+  const bXmax = P[xk]?.bkt ? plot.x + BKT_FRAC * plot.w : null;
+  const bYmin = P[yk]?.bkt ? plot.y + plot.h - BKT_FRAC * plot.h : null;
+
+  for (let i = 0; i < n; i++) {
+    tx[i] = targets[ids[i]].px;
+    ty[i] = targets[ids[i]].py;
+    isBktX[i] = (P[xk]?.bkt && all[i][xk] === null) ? 1 : 0;
+    isBktY[i] = (P[yk]?.bkt && all[i][yk] === null) ? 1 : 0;
+    // Warm start: use previous screen position if available.
+    // No distance threshold — ESCAPE_THRESH was removed because it compared
+    // pixel distances, which expand dramatically on zoom and caused every dot
+    // outside a small radius to cold-start, collapsing clusters to the centre.
+    // The axesMatch check in computePos already ensures warm start is only used
+    // when axes haven't changed (so positions are semantically valid).
+    const prev = prevNormPos?.[ids[i]];
+    if (prev) {
+      px[i] = normToPixel(prev.tx, selX.value, true,  plot.w, plot.x, false);
+      py[i] = normToPixel(prev.ty, selY.value, false, plot.h, plot.y, true);
+    } else {
+      px[i] = tx[i] + all[i].jx * 0.5;
+      py[i] = ty[i] + all[i].jy * 0.5;
+    }
+  }
+
+  const order = new Array(n);
+  for (let i = 0; i < n; i++) order[i] = i;
+  // Standard Array (not Int32Array) handles NaN comparators without silent crash.
+  // NaN guard (|| 0) prevents a 0-pixel layout race from halting the physics engine.
+  order.sort((a, b) => (px[a] || 0) - (px[b] || 0));
+
+  for (let iter = 0; iter < ITERS; iter++) {
+    for (let i = 1; i < n; i++) {
+      const cur = order[i]; let j = i - 1;
+      while (j >= 0 && px[order[j]] > px[cur]) { order[j+1] = order[j]; j--; }
+      order[j+1] = cur;
+    }
+    for (let i = 0; i < n; i++) {
+      const a = order[i];
+      for (let j = i + 1; j < n; j++) {
+        const b = order[j];
+        const dx = px[a] - px[b];
+        if (dx < -D) break;
+        const dy = py[a] - py[b];
+        if (dy >= D || dy <= -D) continue;
+        const d2 = dx*dx + dy*dy;
+        if (d2 >= D*D || d2 < 0.001) continue;
+        const d    = Math.sqrt(d2);
+        const push = (D - d) * 0.5 / d;
+        px[a] += dx * push;  py[a] += dy * push;
+        px[b] -= dx * push;  py[b] -= dy * push;
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      px[i] += K_SPR * (tx[i] - px[i]);
+      py[i] += K_SPR * (ty[i] - py[i]);
+      // Hard-clamp bucket dots inside their region so collision forces can never
+      // push them past the axis edge. Without this, px < plot.x gives a positive
+      // tx (sign flip) and the dot permanently escapes the bucket on warm start.
+      if (isBktX[i]) {
+        if (px[i] < plot.x + dotR)    px[i] = plot.x + dotR;
+        else if (px[i] > bXmax - dotR) px[i] = bXmax - dotR;
+      }
+      if (isBktY[i]) {
+        if (py[i] < bYmin + dotR)               py[i] = bYmin + dotR;
+        else if (py[i] > plot.y + plot.h - dotR) py[i] = plot.y + plot.h - dotR;
+      }
+    }
+  }
+
+  const result = {};
+  for (let i = 0; i < n; i++) result[ids[i]] = { px: px[i], py: py[i] };
+  return result;
+}
+
+// ════════════════════════════════════════════════
+//  HIT DETECTION
+// ════════════════════════════════════════════════
+
+function findNearest(mx, my) {
+  if (!curPos || !layout) return -1;
+  const { plot } = layout;
+  let bestD = Infinity, bestI = -1;
+  for (const m of MATS) {
+    const pos = curPos[m.idx];
+    if (!pos) continue;
+    // Use animated screen position during transition, settled position otherwise
+    let sx, sy;
+    if (animScreen?.[m.idx]) {
+      sx = animScreen[m.idx].px;
+      sy = animScreen[m.idx].py;
+    } else {
+      sx = normToPixel(pos.tx, selX.value, true,  plot.w, plot.x, false);
+      sy = normToPixel(pos.ty, selY.value, false, plot.h, plot.y, true);
+    }
+    // Reject dots whose screen position is outside the plot clip region —
+    // they are not rendered and should not be hoverable.
+    if (sx < plot.x || sx > plot.x + plot.w || sy < plot.y || sy > plot.y + plot.h) continue;
+    // Bucket dots (negative tx/ty encoding) occupy the left/bottom strip only.
+    // Reject them when the cursor is in the main numeric area, so hovering near
+    // the bucket boundary doesn't unexpectedly select a hidden complex-eigenvalue dot.
+    if (pos.tx < 0 && mx >= plot.x + BKT_FRAC * plot.w) continue;
+    if (pos.ty < 0 && my <= plot.y + (1 - BKT_FRAC) * plot.h) continue;
+    const d2 = (sx - mx)**2 + (sy - my)**2;
+    if (d2 < bestD) { bestD = d2; bestI = m.idx; }
+  }
+  return bestD < 400 ? bestI : -1;
+}
+
+// ════════════════════════════════════════════════
+//  UI BRIDGE
+//
+//  Sidebar and panel functions live in ui.js.
+//  This single function is the controlled write-back
+//  channel: ui.js calls it when a parameter slider
+//  triggers an immediate (non-animated) recompute.
+// ════════════════════════════════════════════════
+
+// Called by ui.js buildParams slider listener when p.recompute is true.
+// Updates curPos immediately (no animation) and redraws.
+function updatePosImmediate() {
+  curPos = computePos();
+  recordCurPosAxes();
+  drawAll();
+}
+
+// ════════════════════════════════════════════════
+//  CANVAS INTERACTION
+//
+//  Hover  (move, no button): shows tooltip transiently.
+//  Click  (non-drag, on dot): selects matrix → fills sidebar panel.
+//  Click  (non-drag, empty):  deselects.
+//  Drag   (move + button):   pans the viewport.
+//  Pinch  (two pointers):    zooms the viewport.
+//  Wheel:                    zooms the viewport.
+//  Double-click:             resets viewport to full range.
+//
+//  Handlers update vp, hovIdx, and pinnedIdx only.
+//  They never write to curPos.
+// ════════════════════════════════════════════════
+
+function canvasHover(mx, my) {
+  if (drag?.moved) return;
+  const ni = findNearest(mx, my);
+  if (ni !== hovIdx) { hovIdx = ni; drawAll(); }
+  cv.style.cursor = ni >= 0 ? 'pointer' : 'crosshair';
+  if (ni >= 0) {
+    const m = MATS.find(m => m.idx === ni);
+    if (m) showTip(m, mx, my);
+  } else {
+    tip.style.display = 'none';
+  }
+}
+
+function cvPos(e) { const r = cv.getBoundingClientRect(); return { mx: e.clientX-r.left, my: e.clientY-r.top }; }
+
+// ── Pointer events (mouse and touch unified) ───
+//
+// Single pointer: hover while stationary, pan while dragging.
+// Two pointers:   pinch to zoom.
+// Pointer events unify mouse and touch without needing
+// separate touch* listeners.
+
+const activePointers = new Map();
+let pinchStartDist = null;
+let pinchStartVP   = null;
+
+function pointerDist() {
+  const pts = [...activePointers.values()];
+  return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+}
+function pointerMid() {
+  const pts = [...activePointers.values()];
+  const r = cv.getBoundingClientRect();
+  return { mx: ((pts[0].x+pts[1].x)/2) - r.left, my: ((pts[0].y+pts[1].y)/2) - r.top };
+}
+
+cv.addEventListener('pointerdown', e => {
+  wasJustDragging = false;
+  cv.setPointerCapture(e.pointerId);
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (activePointers.size === 2) {
+    drag = null; tip.style.display = 'none';
+    pinchStartDist = pointerDist();
+    pinchStartVP   = { ...vp };
+    return;
+  }
+  const { mx, my } = cvPos(e);
+  drag = { startX: mx, startY: my, startVP: { ...vp }, moved: false };
+});
+
+cv.addEventListener('pointermove', e => {
+  const { mx, my } = cvPos(e);
+
+  // Plain hover: no pointer button held, just mouse moving over canvas
+  if (activePointers.size === 0) {
+    canvasHover(mx, my);
+    return;
+  }
+
+  if (!activePointers.has(e.pointerId)) return;
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (activePointers.size === 2 && pinchStartDist !== null) {
+    if (vpAxisActive(true) || vpAxisActive(false)) {
+      const mid = pointerMid();
+      vp = { ...pinchStartVP };
+      vpZoom(pointerDist() / pinchStartDist, mid.mx, mid.my);
+      drawAll();
+      clearTimeout(zoomTimer);
+      zoomTimer = setTimeout(() => { animateTo(computePos()); }, 200);
+    }
+    return;
+  }
+
+  if (!drag) { canvasHover(mx, my); return; }
+  const dx = mx - drag.startX, dy = my - drag.startY;
+  if (!drag.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) { canvasHover(mx, my); return; }
+  drag.moved = true;
+  tip.style.display = 'none';
+  cv.style.cursor = 'grabbing';
+  if (vpAxisActive(true) || vpAxisActive(false)) {
+    vp = { ...drag.startVP };
+    vpPan(dx, dy);
+    drawAll();
+  }
+});
+
+cv.addEventListener('pointerup', e => {
+  activePointers.delete(e.pointerId);
+  if (activePointers.size < 2) { pinchStartDist = null; pinchStartVP = null; }
+  if (!drag) return;
+  const wasDragging = drag.moved;
+  if (wasDragging) wasJustDragging = true;
+  drag = null;
+  cv.style.cursor = hovIdx >= 0 ? 'pointer' : 'crosshair';
+  if (wasDragging) drawAll();
+});
+
+cv.addEventListener('pointerleave', e => {
+  activePointers.delete(e.pointerId);
+  if (activePointers.size === 0) { hovIdx = -1; tip.style.display = 'none'; drawAll(); }
+});
+
+// ── Zoom (mouse wheel) ─────────────────────────
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (!layout) return;
+  if (!vpAxisActive(true) && !vpAxisActive(false)) return;
+  const { mx, my } = cvPos(e);
+  vpZoom(Math.pow(2, -e.deltaY / 500), mx, my);
+  drawAll();
+  clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(() => { animateTo(computePos()); }, 200);
+}, { passive: false });
+
+// ── Click: select matrix into sidebar panel ────
+cv.addEventListener('click', e => {
+  if (wasJustDragging) { wasJustDragging = false; return; }
+  const { mx, my } = cvPos(e);
+  const ni = findNearest(mx, my);
+  if (ni >= 0) {
+    const newSel = ni !== pinnedIdx;
+    pinnedIdx = newSel ? ni : -1;
+    if (newSel) { selAnimPaused = false; thetaTimeBase = performance.now(); }  // new matrix: fresh start
+    const m = newSel ? MATS.find(m => m.idx === ni) : null;
+    if (m) buildSelectedPanel(m); else clearSelectedPanel();
+  } else if (pinnedIdx >= 0) {
+    pinnedIdx = -1;
+    clearSelectedPanel();
+  }
+  drawAll();
+});
+
+// ── Reset (double-click / zoom-out button) ─────
+cv.addEventListener('dblclick', () => {
+  if (!vpIsDefault()) {
+    const fs = captureScreenPos();
+    vpInit();
+    drawAll();
+    animateTo(computePos(), fs);
+  }
+});
+
+selPreset.addEventListener('change', () => {
+  applyPreset(+selPreset.value);
+  const fs = captureScreenPos();
+  vpInit(); animateTo(computePos(), fs); drawAll();
+});
+const axDet = () => { document.getElementById('axes-details').open = true; };
+selX.addEventListener('change', () => { clearPreset(); axDet(); const fs = captureScreenPos(); vpInit(); animateTo(computePos(), fs); drawAll(); });
+selY.addEventListener('change', () => { clearPreset(); axDet(); const fs = captureScreenPos(); vpInit(); animateTo(computePos(), fs); drawAll(); });
+selC.addEventListener('change', () => { clearPreset(); axDet(); buildLegend(); drawAll(); });
+
+window.addEventListener('resize', () => {
+  anim = null;
+  sizeCanvas();
+  layout = computeLayout();
+  drawAll();                       // immediate: current normalised positions in new layout
+  clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(() => { animateTo(computePos()); }, 150);
+});
+
+// ════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════
+
+const modalOverlay = document.getElementById('modal-overlay');
+document.getElementById('modal-close').addEventListener('click', () => { modalOverlay.style.display = 'none'; });
+document.getElementById('btn-info').addEventListener('click',    () => { modalOverlay.style.display = 'flex'; });
+
+const sidebar        = document.getElementById('sidebar');
+const btnToggle      = document.getElementById('btn-toggle');
+const btnShowSidebar = document.getElementById('btn-show-sidebar');
+
+function setSidebarCollapsed(collapsed) {
+  sidebar.classList.toggle('collapsed', collapsed);
+  btnShowSidebar.style.display = collapsed ? 'flex' : 'none';
+  // After the CSS transition (320ms), redraw immediately then animate to repacked layout
+  setTimeout(() => {
+    sizeCanvas(); layout = computeLayout(); drawAll();
+    animateTo(computePos());
+  }, 320);
+}
+btnToggle.addEventListener('click',      () => setSidebarCollapsed(true));
+btnShowSidebar.addEventListener('click', () => setSidebarCollapsed(false));
+
+document.getElementById('btn-zoom-in').addEventListener('click', () => {
+  if (!layout) return;
+  if (!vpAxisActive(true) && !vpAxisActive(false)) return;
+  const { plot } = layout;
+  vpZoom(1.5, plot.x + plot.w / 2, plot.y + plot.h / 2);
+  drawAll();
+  clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(() => { animateTo(computePos()); }, 200);
+});
+document.getElementById('btn-zoom-out').addEventListener('click', () => {
+  if (!layout) return;
+  if (!vpAxisActive(true) && !vpAxisActive(false)) return;
+  const { plot } = layout;
+  vpZoom(1 / 1.5, plot.x + plot.w / 2, plot.y + plot.h / 2);
+  drawAll();
+  clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(() => { animateTo(computePos()); }, 200);
+});
+
+buildSelects(); buildLegend(); buildParams();
+applyPreset(1);
+vpInit();
+if (window.innerWidth <= 600) setSidebarCollapsed(true);
+
+// Selected matrix panel buttons
+document.getElementById('sel-close').addEventListener('click', () => {
+  pinnedIdx = -1;
+  selAnimPaused = false;
+  thetaTimeBase = performance.now();
+  clearSelectedPanel();
+  drawAll();
+});
+document.getElementById('sel-explore').addEventListener('click', e => {
+  const mat = e.currentTarget.dataset.matrix;
+  if (mat) window.open(`matrix-transformation-explorer.html?m=${mat}`, '_blank');
+});
+
+const modalMatCv = document.getElementById('modal-mat-cv');
+drawMatrixPanel(modalMatCv.getContext('2d'), 0, 0, 90, 72, 1, -2, 0, 1);
+
+// ════════════════════════════════════════════════
+//  URL STATE — read on load, write via share button
+//
+//  Parameters: x, y, c (axis/colour keys), vp (viewport
+//  as xMin,xMax,yMin,yMax), m (selected matrix as a,b,c,d),
+//  and any PARAMS keys that differ from their defaults.
+//
+//  Initialization is deferred by 50ms (see bottom of file)
+//  so the browser's CSS flexbox layout has time to paint
+//  before sizeCanvas() measures dimensions. Without this,
+//  clientWidth can be 0, producing NaN coordinates that
+//  crash the physics sort. The modal is hidden synchronously
+//  before the delay so there is no visible flash on shared links.
+//
+//  All URL parameters are validated before use — invalid keys
+//  or out-of-range values fall back to the default view.
+//
+//  getShareURL() produces a URL with all current non-default
+//  state encoded. The share button copies it to the clipboard.
+// ════════════════════════════════════════════════
+
+function applyURLState() {
+  const p = new URLSearchParams(window.location.search);
+
+  // No shared state — compute default positions and return
+  if (!p.has('x') && !p.has('y')) { curPos = computePos(); drawAll(); return; }
+
+  // Shared link — skip the intro modal
+  document.getElementById('modal-overlay').style.display = 'none';
+
+  // Axes and colour
+  if (p.has('x')) selX.value = p.get('x');
+  if (p.has('y')) selY.value = p.get('y');
+  if (p.has('c')) selC.value = p.get('c');
+  buildLegend();
+  clearPreset();
+
+  // PARAMS — restore before computePos so layout uses the right values
+  for (const [key, param] of Object.entries(PARAMS)) {
+    if (p.has(key)) {
+      const v = +p.get(key);
+      if (!isNaN(v)) {
+        param.value = v;
+        const slider = document.querySelector(`#params-controls input[data-key="${key}"]`);
+        if (slider) slider.value = v;
+      }
+    }
+  }
+
+  // Viewport MUST be restored before computePos — the layout engine uses vp to
+  // determine target positions and which dots are visible. Restoring it afterwards
+  // causes computePos to calculate for the default view while drawAll renders the
+  // zoomed view, scrambling all dot positions.
+  if (p.has('vp')) {
+    const parts = p.get('vp').split('~').map(Number);
+    if (parts.length === 4 && parts.every(n => isFinite(n)) &&
+        parts[0] < parts[1] && parts[2] < parts[3])
+      vp = { xMin: parts[0], xMax: parts[1], yMin: parts[2], yMax: parts[3] };
+  } else {
+    vpInit();
+  }
+
+  curPos = computePos();
+  recordCurPosAxes();
+  drawAll();
+
+  if (p.has('m')) {
+    const parts = p.get('m').split('~').map(Number);
+    if (parts.length === 4 && parts.every(n => Number.isInteger(n))) {
+      const [a, b, c, d] = parts;
+      const found = MATS.find(m => m.a===a && m.b===b && m.c===c && m.d===d);
+      if (found) {
+        pinnedIdx = found.idx;
+        buildSelectedPanel(found);
+        selAnimPaused = false;
+        thetaTimeBase = performance.now();
+      }
+    }
+  }
+}
+
+function getShareURL() {
+  const p = new URLSearchParams();
+  p.set('x', selX.value);
+  p.set('y', selY.value);
+  p.set('c', selC.value);
+  // Viewport — only if non-default. Use ~ separator: commas encode as %2C, tildes don't.
+  if (vp.xMin !== null) {
+    const r = n => Math.round(n * 1000) / 1000;
+    p.set('vp', `${r(vp.xMin)}~${r(vp.xMax)}~${r(vp.yMin)}~${r(vp.yMax)}`);
+  }
+  // Selected matrix — likewise tilde-separated
+  if (pinnedIdx >= 0) {
+    const m = MATS[pinnedIdx];
+    if (m) p.set('m', `${m.a}~${m.b}~${m.c}~${m.d}`);
+  }
+  // PARAMS — only non-default values
+  for (const [key, param] of Object.entries(PARAMS)) {
+    // Find default by looking at the initial value stored at param definition time.
+    // We store defaults once at startup; use the PARAM_DEFAULTS map.
+    if (param.value !== PARAM_DEFAULTS[key]) p.set(key, param.value);
+  }
+  const url = new URL(window.location.href);
+  url.search = p.toString();
+  return url.toString();
+}
+
+// Capture defaults once before applyURLState can modify them
+const PARAM_DEFAULTS = Object.fromEntries(
+  Object.entries(PARAMS).map(([k, p]) => [k, p.value])
+);
+
+// Valid axis/colour key sets — used to reject malformed URL params
+const VALID_AXIS_KEYS  = new Set(AXIS_KEYS);
+const VALID_COLOR_KEYS = new Set(COLOR_KEYS);
+
+
+// Hide modal synchronously before the 50ms layout delay so shared links
+// never briefly flash the intro modal before the deferred draw runs.
+const sharedLinkParams = new URLSearchParams(window.location.search);
+if (sharedLinkParams.has('x') || sharedLinkParams.has('y')) {
+  document.getElementById('modal-overlay').style.display = 'none';
+}
+
+// Defer canvas sizing by 50ms so the browser's CSS flexbox layout has time to
+// paint before we measure dimensions. Without this, clientWidth can be 0 on a
+// fresh page load, producing NaN coordinates that silently crash the physics sort.
+setTimeout(() => {
+  sizeCanvas();
+  layout = computeLayout();
+  applyURLState();
+}, 50);
+
+// Share button — copies the current view URL to the clipboard and shows a toast.
+// Uses the modern clipboard API where available; falls back to a legacy execCommand
+// approach for file:// contexts where the async clipboard API may be unavailable.
+function showShareToast(msg) {
+  const toast = document.getElementById('share-toast');
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 2200);
+}
+
+document.getElementById('btn-share').addEventListener('click', () => {
+  const url = getShareURL();
+  // Modern clipboard API requires a secure context (HTTPS or localhost).
+  // On file:// it is present but will silently fail or throw — guard with isSecureContext.
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(url)
+      .then(() => showShareToast('Link copied to clipboard'))
+      .catch(() => window.prompt('Copy this link to share:', url));
+  } else {
+    // Legacy fallback for file:// or older browsers.
+    // Textarea must be visible to the browser (not opacity:0 or display:none)
+    // or Safari will block execCommand('copy'). Negative position works everywhere.
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    ta.setSelectionRange(0, 99999);
+    try {
+      document.execCommand('copy');
+      showShareToast('Link copied to clipboard');
+    } catch {
+      window.prompt('Copy this link to share:', url);
+    }
+    document.body.removeChild(ta);
+  }
+});
+
+// ════════════════════════════════════════════════
+//  SIDEBAR ROTATION ANIMATION
+//
+//  When a matrix is selected (pinnedIdx ≥ 0), the
+//  transformation panel rotates the input frame so the
+//  user can see what M does to all input directions.
+//
+//  globalTheta is read by buildSelectedPanel (in ui.js)
+//  on first render, and updated each frame here.
+//  Click the diagram to pause/resume; selecting a new
+//  matrix auto-resumes. The tooltip diagram stays static.
+// ════════════════════════════════════════════════
+
+let globalTheta    = 0;
+let selAnimPaused  = false;
+let thetaTimeBase  = 0;    // ms subtracted from rAF timestamp so theta resumes at the right angle
+let selPauseTime   = 0;    // performance.now() recorded at the moment of pause
+
+function selPanelAnimTick(now) {
+  if (!selAnimPaused) {
+    globalTheta = ((now - thetaTimeBase) % 4000) / 4000 * Math.PI * 2;
+    if (pinnedIdx >= 0) {
+      const m = MATS.find(m => m.idx === pinnedIdx);
+      if (m) {
+        const tfmCv = document.getElementById('sel-tfm-cv');
+        const dpr   = window.devicePixelRatio || 1;
+        const tc    = tfmCv.getContext('2d');
+        tc.clearRect(0, 0, tfmCv.width / dpr, tfmCv.height / dpr);
+        drawTransformPanel(tc, 0, 0, tfmCv.width / dpr, tfmCv.height / dpr,
+                           m.a, m.b, m.c, m.d, globalTheta);
+      }
+    }
+  }
+  requestAnimationFrame(selPanelAnimTick);
+}
+
+// Pause / resume by clicking the transformation diagram.
+// On resume, shift thetaTimeBase forward by the duration of the pause so that
+// the animation continues from exactly the angle it was at when paused.
+document.getElementById('sel-tfm-cv').addEventListener('click', () => {
+  selAnimPaused = !selAnimPaused;
+  if (selAnimPaused) {
+    selPauseTime = performance.now();
+    if (pinnedIdx >= 0) {
+      const tfmCv = document.getElementById('sel-tfm-cv');
+      const dpr   = window.devicePixelRatio || 1;
+      const tc    = tfmCv.getContext('2d');
+      tc.save();
+      tc.font = '13px sans-serif';
+      tc.textAlign = 'right';
+      tc.textBaseline = 'bottom';
+      tc.fillStyle = 'rgba(107,114,128,0.7)';
+      tc.fillText('\u25B6', tfmCv.width / dpr - 4, tfmCv.height / dpr - 4);
+      tc.restore();
+    }
+  } else {
+    thetaTimeBase += performance.now() - selPauseTime;
+  }
+});
+document.getElementById('sel-tfm-cv').style.cursor = 'pointer';
+
+requestAnimationFrame(selPanelAnimTick);
+
+
+// ── src/drawing.js ──────────────────────────────────
+
+// ════════════════════════════════════════════════
+//  DRAWING — rendering layer
+//
+//  All canvas rendering. Pure consumers of shared state
+//  — read only, never write.
+//
+//  From app.js:        layout, curPos, animScreen, hovIdx, pinnedIdx, vp,
+//                      viewportLimits, BKT_SENTINEL,
+//                      normToPixel, MATS, cv, ctx, tip,
+//                      selX, selY, selC
+//  From properties.js: P, BKT_FRAC, BKT_GAP, AXIS_MARGIN,
+//                      getEffectiveLimits, getColor, dotBorderCol,
+//                      SHORT_LABEL, fmtVal
+//  From params.js:     PARAMS (dot radius for dot drawing and overlays)
+//
+//  COORDINATE CONTRACT:
+//  curPos stores {tx,ty} in normalised full-property-range
+//  coordinates (viewport-independent). toScreen() maps these
+//  to canvas pixels using the current vp and layout.
+//  This means pan/zoom only redraws — no layout recompute.
+//  Bucket dots (BKT_SENTINEL) are placed at a fixed position
+//  in the bucket region regardless of the current viewport.
+//
+//  OVERLAY CONTRACT:
+//  dataToScreenX(val, xk) and dataToScreenY(val, yk) map data
+//  values to canvas pixels via viewportLimits() and layout,
+//  both read at call time. Overlays therefore respond correctly
+//  to zoom, pan, and resize with no special-case logic.
+//  drawOverlays(xk, yk) is called by drawAll() inside the plot
+//  clip region, before dots, so overlays appear behind data points.
+//  Canvas clipping handles out-of-viewport curve segments automatically.
+//
+//  PRECONDITION: layout must be set (by computePos or computeLayout
+//  in app.js) before drawAll() is called. drawAll() reads layout
+//  but does not write it.
+//
+//  drawMatrixPanel and drawTransformPanel take an explicit
+//  canvas context so they can be called from the tooltip,
+//  modal, or future panels.
+//
+//  HOISTING NOTE: all functions here must use `function foo()`
+//  declarations, not arrow functions or const assignments.
+//  app.js init code calls drawAll() and drawMatrixPanel()
+//  before this file executes linearly; JavaScript function
+//  hoisting makes them available early, but only for
+//  `function` declarations — not for arrow functions.
+//  Depends on: properties.js, params.js, app.js (state only).
+// ════════════════════════════════════════════════
+
+// Maps a normalised position {tx,ty} to canvas pixels {px,py}.
+// tx=0 → left/bottom of full property range; tx=1 → right/top.
+// BKT_SENTINEL → placed in the fixed bucket region regardless of viewport.
+function toScreen(tx, ty) {
+  const { plot } = layout;
+  return {
+    px: normToPixel(tx, selX.value, true,  plot.w, plot.x, false),
+    py: normToPixel(ty, selY.value, false, plot.h, plot.y, true),
+  };
+}
+
+function drawAll() {
+  const { plot, cw, ch } = layout;   // layout set by caller — drawing.js never writes it
+  const xk = selX.value, yk = selY.value, ck = selC.value;
+
+  ctx.clearRect(0, 0, cw, ch);
+  ctx.fillStyle = '#f0ece4';
+  ctx.fillRect(0, 0, cw, ch);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(plot.x, plot.y, plot.w, plot.h);
+
+  if (xk !== 'none' || yk !== 'none') {
+    drawAxisDecor(xk, true);
+    drawAxisDecor(yk, false);
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(plot.x, plot.y, plot.w, plot.h);
+  ctx.clip();
+
+  // Mathematical overlays drawn before dots so dots appear on top.
+  // Only for 2D views — 1D and random scatter have no meaningful overlays.
+  if (xk !== 'none' && yk !== 'none') drawOverlays(xk, yk);
+
+  if (curPos) {
+    // Pre-compute bucket boundary positions for skip tests (null if axis has no bucket)
+    const bktXmax = P[xk]?.bkt ? plot.x + (BKT_FRAC + BKT_GAP) * plot.w : null;
+    const bktYmin = P[yk]?.bkt ? plot.y + plot.h - (BKT_FRAC + BKT_GAP) * plot.h : null;
+
+    for (const m of MATS) {
+      if (!curPos[m.idx]) continue;
+      const pos = curPos[m.idx];
+      // During animation: use interpolated screen position; otherwise map through current viewport
+      const { px, py } = animScreen?.[m.idx] ?? toScreen(pos.tx, pos.ty);
+
+      // Numeric dots that have panned into the bucket area are invisible under the
+      // bucket shading — skip them rather than drawing them on top of bucket dots.
+      // Bucket dots (t < 0) are always drawn in their stored bucket position.
+      if (bktXmax !== null && pos.tx >= 0 && px < bktXmax) continue;
+      if (bktYmin !== null && pos.ty >= 0 && py > bktYmin) continue;
+
+      const col = getColor(m, ck);
+      const hov = m.idx === hovIdx || m.idx === pinnedIdx;
+      ctx.beginPath();
+      ctx.arc(px, py, hov ? PARAMS.dotRadius.value + 2 : PARAMS.dotRadius.value, 0, 2*Math.PI);
+      ctx.fillStyle = col + (hov ? 'ff' : 'bb');
+      ctx.fill();
+      const border = dotBorderCol(col);
+      if (border) { ctx.strokeStyle = border; ctx.lineWidth = 1; ctx.stroke(); }
+      if (hov) {
+        ctx.beginPath(); ctx.arc(px, py, PARAMS.dotRadius.value + 6, 0, 2*Math.PI);
+        ctx.strokeStyle = (border ?? col) + '44'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+    }
+  }
+
+  ctx.restore();
+  ctx.strokeStyle = '#d0c8bc'; ctx.lineWidth = 1;
+  ctx.strokeRect(plot.x, plot.y, plot.w, plot.h);
+}
+
+function drawAxisDecor(key, isX) {
+  const { plot } = layout;
+  const p       = P[key];
+  const axisLen = isX ? plot.w : plot.h;
+
+  if (p.type === 'none') {
+    const otherKey = isX ? selY.value : selX.value;
+    const label = otherKey !== 'none' ? '(spread shows density)' : '(all matrices)';
+    ctx.fillStyle = '#9a8e7a'; ctx.font = '12px Courier New';
+    if (isX) {
+      ctx.textAlign = 'center';
+      ctx.fillText(label, plot.x + plot.w/2, plot.y + plot.h + 52);
+    } else {
+      ctx.save();
+      ctx.translate(plot.x - plot.x * 0.5 - 10, plot.y + plot.h/2);
+      ctx.rotate(-Math.PI/2); ctx.textAlign = 'center';
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    }
+    return;
+  }
+
+  // Axis title
+  ctx.fillStyle = '#3a2e1e'; ctx.font = '14px Courier New';
+  if (isX) {
+    ctx.textAlign = 'center';
+    ctx.fillText(p.label, plot.x + plot.w/2, plot.y + plot.h + 56);
+  } else {
+    ctx.save();
+    ctx.translate(plot.x - (p.type === 'cat' ? 80 : 52), plot.y + plot.h/2);
+    ctx.rotate(-Math.PI/2); ctx.textAlign = 'center';
+    ctx.fillText(p.label, 0, 0);
+    ctx.restore();
+  }
+
+  // Complex bucket shading and label
+  if (p.bkt) {
+    const bpx  = BKT_FRAC * axisLen;
+    const gapx = (BKT_FRAC + BKT_GAP) * axisLen;
+
+    // Bucket background
+    ctx.fillStyle = 'rgba(109,60,171,0.06)';
+    isX ? ctx.fillRect(plot.x, plot.y, bpx, plot.h)
+        : ctx.fillRect(plot.x, plot.y + plot.h - bpx, plot.w, bpx);
+
+    // Dashed divider at bucket edge
+    ctx.setLineDash([3, 4]); ctx.strokeStyle = '#b09acc'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (isX) { ctx.moveTo(plot.x + bpx, plot.y); ctx.lineTo(plot.x + bpx, plot.y + plot.h); }
+    else      { ctx.moveTo(plot.x, plot.y + plot.h - bpx); ctx.lineTo(plot.x + plot.w, plot.y + plot.h - bpx); }
+    ctx.stroke(); ctx.setLineDash([]);
+
+    // Gap strip — a slightly tinted band separating bucket from numeric region
+    const gapW = (gapx - bpx);
+    ctx.fillStyle = 'rgba(109,60,171,0.04)';
+    isX ? ctx.fillRect(plot.x + bpx, plot.y, gapW, plot.h)
+        : ctx.fillRect(plot.x, plot.y + plot.h - gapx, plot.w, gapW);
+
+    // Bucket label
+    ctx.fillStyle = '#6d3cab'; ctx.font = '13px Courier New'; ctx.textAlign = 'center';
+    if (isX) {
+      ctx.fillText('[' + p.bkt + ']', plot.x + bpx/2, plot.y + plot.h + 24);
+    } else {
+      ctx.save();
+      ctx.translate(plot.x - 6, plot.y + plot.h - bpx/2);
+      ctx.rotate(-Math.PI/2); ctx.textAlign = 'center';
+      ctx.fillText('[' + p.bkt + ']', 0, 0);
+      ctx.restore();
+    }
+  }
+
+  // Grid lines and tick labels (closures over plot, axisLen, isX, p)
+  function gridLine(t) {
+    const off = t * axisLen;
+    ctx.strokeStyle = '#e8e2d8'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (isX) { ctx.moveTo(plot.x + off, plot.y);            ctx.lineTo(plot.x + off, plot.y + plot.h); }
+    else      { ctx.moveTo(plot.x, plot.y + plot.h - off);  ctx.lineTo(plot.x + plot.w, plot.y + plot.h - off); }
+    ctx.stroke();
+  }
+
+  function tickLabel(t, lbl) {
+    const off = t * axisLen;
+    ctx.fillStyle = '#6b5a40'; ctx.font = '13px Courier New';
+    if (isX) {
+      ctx.textAlign = 'center';
+      ctx.fillText(lbl, plot.x + off, plot.y + plot.h + 22);
+    } else if (p.type === 'cat') {
+      ctx.save();
+      ctx.translate(plot.x - 6, plot.y + plot.h - off);
+      ctx.rotate(-Math.PI / 2); ctx.textAlign = 'right';
+      ctx.fillText(lbl, 0, 0);
+      ctx.restore();
+    } else {
+      ctx.textAlign = 'right';
+      ctx.fillText(lbl, plot.x - 6, plot.y + plot.h - off + 4);
+    }
+  }
+
+  if (p.type === 'disc') {
+    const { min, max } = viewportLimits(key, isX);
+    const valRange = max - min;
+    for (let v = Math.ceil(min); v <= Math.floor(max); v++) {
+      const t0 = (v - min + 0.5) / (valRange + 1);
+      const t  = AXIS_MARGIN + t0 * (1 - 2 * AXIS_MARGIN);
+      gridLine(t);
+      if (v % p.step === 0) tickLabel(t, String(v));
+    }
+  } else if (p.type === 'cat') {
+    const n = p.cats.length;
+    for (let i = 0; i < n; i++) {
+      if (i > 0) gridLine(i / n);
+      tickLabel((i + 0.5) / n, p.cats[i]);
+    }
+  } else if (p.type === 'cont') {
+    const { min, max } = viewportLimits(key, isX);
+    const s0 = p.bkt ? BKT_FRAC + BKT_GAP : 0;
+    const n  = p.nticks ?? 6;
+    for (let i = 0; i <= n; i++) {
+      const t0  = s0 + (i/n) * (1 - s0);
+      const t   = p.bkt ? t0 : AXIS_MARGIN + t0 * (1 - 2 * AXIS_MARGIN);
+      const val = min + (i/n) * (max - min);
+      gridLine(t);
+      tickLabel(t, Number.isInteger(val) ? String(val) : val.toFixed(1));
+    }
+  }
+}
+
+// ════════════════════════════════════════════════
+//  TOOLTIP
+// ════════════════════════════════════════════════
+
+function buildTipInfo(m) {
+  const xk = selX.value, yk = selY.value, ck = selC.value;
+  const rows = [];
+  if (xk !== 'none')                              rows.push([SHORT_LABEL[xk] ?? xk, fmtVal(m[xk])]);
+  if (yk !== 'none')                              rows.push([SHORT_LABEL[yk] ?? yk, fmtVal(m[yk])]);
+  if (ck !== 'no_color' && ck !== 'random_color') rows.push([SHORT_LABEL[ck] ?? ck, fmtVal(m[ck])]);
+  const el = document.getElementById('tip-info');
+  if (!rows.length) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = rows.map(([k, v]) =>
+    `<div class="tip-row"><span class="tip-k">${k}</span><span class="tip-v">${v}</span></div>`
+  ).join('');
+}
+
+function drawTipCanvas(a, b, c, d) {
+  const tipcv = document.getElementById('tip-cv');
+  const cx = tipcv.getContext('2d');
+  const W = tipcv.width, H = tipcv.height;
+  cx.clearRect(0, 0, W, H);
+  cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, W, H);
+  const matW = 96;
+  drawMatrixPanel(cx, 0, 0, matW, H, a, b, c, d);
+  cx.strokeStyle = '#e8e2d8'; cx.lineWidth = 1;
+  cx.beginPath(); cx.moveTo(matW + 6, 6); cx.lineTo(matW + 6, H - 6); cx.stroke();
+  drawTransformPanel(cx, matW + 12, 0, W - matW - 12, H, a, b, c, d);
+}
+
+// Draws a matrix in bracket notation into an arbitrary canvas context and bounding rect.
+// Used by the tooltip and the intro modal.
+function drawMatrixPanel(cx, x, y, w, h, a, b, c, d) {
+  const pad = 10, bw = 6, bt = 2.5;
+  const mx = x + pad, my = y + pad, mw = w - pad*2, mh = h - pad*2;
+  cx.strokeStyle = '#1a56a0'; cx.lineWidth = bt; cx.lineJoin = 'miter';
+  cx.beginPath(); cx.moveTo(mx+bw,my); cx.lineTo(mx,my); cx.lineTo(mx,my+mh); cx.lineTo(mx+bw,my+mh); cx.stroke();
+  cx.beginPath(); cx.moveTo(mx+mw-bw,my); cx.lineTo(mx+mw,my); cx.lineTo(mx+mw,my+mh); cx.lineTo(mx+mw-bw,my+mh); cx.stroke();
+  const inner = mw - bw*2 - 4, colW = inner / 2;
+  let fs = 17;
+  cx.font = `bold ${fs}px Courier New`;
+  const maxW = Math.max(...[a,b,c,d].map(v => cx.measureText(String(v)).width));
+  if (maxW > colW - 6) fs = Math.max(10, Math.floor(fs * (colW - 6) / maxW));
+  cx.font = `bold ${fs}px Courier New`;
+  const c1 = mx + bw + 2 + colW * 0.5, c2 = mx + bw + 2 + colW * 1.5;
+  const r1 = my + mh * 0.28,           r2 = my + mh * 0.72;
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillStyle = '#c0392b'; cx.fillText(String(a), c1, r1);
+  cx.fillStyle = '#1a7a4a'; cx.fillText(String(b), c2, r1);
+  cx.fillStyle = '#c0392b'; cx.fillText(String(c), c1, r2);
+  cx.fillStyle = '#1a7a4a'; cx.fillText(String(d), c2, r2);
+}
+
+// Draws the unit-square → parallelogram transformation diagram.
+// Self-contained: takes an explicit canvas context and bounding rect.
+// theta (default 0) rotates the input frame, animating how the matrix
+// acts on a continuously rotating orthonormal basis.
+function drawTransformPanel(cx, x, y, w, h, a, b, c, d, theta = 0) {
+  const C1 = '#c0392b', C2 = '#1a7a4a';
+
+  // Rotating input frame — orthonormal basis rotated by theta
+  const ct = Math.cos(theta), st = Math.sin(theta);
+  const u1 = ct,  v1 = st;    // first basis vector
+  const u2 = -st, v2 = ct;    // second basis vector (perpendicular)
+  const sq = [[0,0], [u1,v1], [u1+u2, v1+v2], [u2,v2]];
+  const im = sq.map(([u,v]) => [a*u + b*v, c*u + d*v]);
+
+  // Analytically stable bounding box — independent of theta, prevents jitter.
+  // Input corners reach at most √2 from origin (far corner, radius √2).
+  // Image X-extremes: √2·‖row1‖ where row1 = (a,b). Y: √2·‖row2‖.
+  // This is exact: image of [cos θ−sin θ, sin θ+cos θ] has X-amplitude
+  // √((a+b)²+(b−a)²) = √(2(a²+b²)) = √2·‖row1‖; all other corners are smaller.
+  const row1   = Math.sqrt(a*a + b*b);
+  const row2   = Math.sqrt(c*c + d*d);
+  const xBound = Math.SQRT2 * Math.max(1, row1) * 1.15;
+  const yBound = Math.SQRT2 * Math.max(1, row2) * 1.15;
+  const x0 = -xBound, x1 = xBound, y0 = -yBound, y1 = yBound;
+
+  const margin = 6, pw = w - margin*2, ph = h - margin*2;
+  const scale  = Math.min(pw/(x1-x0), ph/(y1-y0));
+  // Box is symmetric about origin so (x0+x1)/2 = 0; origin always centred.
+  const ox = x + margin + pw/2;
+  const oy = y + margin + ph/2;
+  const toC = (px, py) => [ox + px*scale, oy - py*scale];
+
+  function edge(p, q, col, lw) {
+    cx.beginPath(); cx.moveTo(...p); cx.lineTo(...q);
+    cx.strokeStyle = col; cx.lineWidth = lw; cx.stroke();
+  }
+
+  const [axL]    = toC(x0, 0); const [axR]    = toC(x1, 0);
+  const [, ayB]  = toC(0, y0); const [, ayT]  = toC(0, y1);
+  const [axO, ayO] = toC(0, 0);
+  cx.strokeStyle = '#d8dce4'; cx.lineWidth = 1;
+  cx.beginPath(); cx.moveTo(axL, ayO); cx.lineTo(axR, ayO); cx.stroke();
+  cx.beginPath(); cx.moveTo(axO, ayB); cx.lineTo(axO, ayT); cx.stroke();
+
+  // Input square (faded) — rotated frame
+  cx.beginPath();
+  sq.forEach(([u,v], i) => { const p = toC(u,v); i ? cx.lineTo(...p) : cx.moveTo(...p); });
+  cx.closePath(); cx.fillStyle = 'rgba(180,195,215,0.25)'; cx.fill();
+  edge(toC(0,0), toC(u1,v1),       C1+'55', 1.5);
+  edge(toC(0,0), toC(u2,v2),       C2+'55', 1.5);
+  edge(toC(u1,v1),    toC(u1+u2,v1+v2), '#b0bcc8', 1);
+  edge(toC(u2,v2),    toC(u1+u2,v1+v2), '#b0bcc8', 1);
+
+  // Transformed square (solid) — image of the rotated frame
+  cx.beginPath();
+  im.forEach(([u,v], i) => { const p = toC(u,v); i ? cx.lineTo(...p) : cx.moveTo(...p); });
+  cx.closePath(); cx.fillStyle = 'rgba(100,140,180,0.10)'; cx.fill();
+  edge(toC(0,0),            toC(im[1][0], im[1][1]), C1,      2);
+  edge(toC(0,0),            toC(im[3][0], im[3][1]), C2,      2);
+  edge(toC(im[1][0],im[1][1]), toC(im[2][0],im[2][1]), C2+'88', 1.5);
+  edge(toC(im[3][0],im[3][1]), toC(im[2][0],im[2][1]), C1+'88', 1.5);
+
+  const [opx, opy] = toC(0, 0);
+  cx.beginPath(); cx.arc(opx, opy, 2.5, 0, 2*Math.PI);
+  cx.fillStyle = '#8a95a3'; cx.fill();
+}
+
+// Shows the hover tooltip near (mx, my). Always transient — disappears on mouse-out.
+// The selected matrix panel in the sidebar handles the persistent selection state.
+function showTip(m, mx, my) {
+  drawTipCanvas(m.a, m.b, m.c, m.d);
+  buildTipInfo(m);
+  tip.style.display = 'block';
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  const { cw, ch } = layout;
+  let tx = mx + 14, ty = my - 10;
+  if (tx + tw > cw - 4) tx = mx - tw - 10;
+  if (ty + th > ch - 4) ty = ch - th - 4;
+  if (ty < 4) ty = 4;
+  tip.style.left = tx + 'px';
+  tip.style.top  = ty + 'px';
+}
+
+// ════════════════════════════════════════════════
+//  MATHEMATICAL OVERLAYS
+//
+//  Reference curves and lines rendered in data space
+//  and projected to canvas pixels at draw time.
+//
+//  The two helpers below are the entire "coordinate
+//  transform" layer for overlays: they call viewportLimits()
+//  and read layout on every invocation, so they always
+//  reflect the current state of vp and layout. This is
+//  what makes overlays respond correctly to zoom, pan,
+//  and resize without any additional wiring.
+//
+//  To add a new overlay: write a function overlayXxYy
+//  following the same save/restore pattern, then add an
+//  entry to OVERLAY_FNS.
+// ════════════════════════════════════════════════
+
+// Canvas pixel X for a data value on the X axis (through current viewport).
+function dataToScreenX(val, xk) {
+  const p = P[xk];
+  const { plot } = layout;
+  const { min: vpMin, max: vpMax } = viewportLimits(xk, true);
+  const vpT = (val - vpMin) / (vpMax - vpMin);
+  const st  = p.bkt
+    ? (BKT_FRAC + BKT_GAP) + vpT * (1 - BKT_FRAC - BKT_GAP)
+    : AXIS_MARGIN + vpT * (1 - 2 * AXIS_MARGIN);
+  return plot.x + st * plot.w;
+}
+
+// Canvas pixel Y for a data value on the Y axis.
+// Y data increases upward; screen Y increases downward — hence the (1−st) flip.
+function dataToScreenY(val, yk) {
+  const p = P[yk];
+  const { plot } = layout;
+  const { min: vpMin, max: vpMax } = viewportLimits(yk, false);
+  const vpT = (val - vpMin) / (vpMax - vpMin);
+  const st  = p.bkt
+    ? (BKT_FRAC + BKT_GAP) + vpT * (1 - BKT_FRAC - BKT_GAP)
+    : AXIS_MARGIN + vpT * (1 - 2 * AXIS_MARGIN);
+  return plot.y + (1 - st) * plot.h;
+}
+
+// Draw a straight line in data space (ctx style must already be set by caller).
+function overlayLine(x1, y1, x2, y2, xk, yk) {
+  ctx.beginPath();
+  ctx.moveTo(dataToScreenX(x1, xk), dataToScreenY(y1, yk));
+  ctx.lineTo(dataToScreenX(x2, xk), dataToScreenY(y2, yk));
+  ctx.stroke();
+}
+
+// ── Trace and determinant: parabola tr² = 4·det ──────────────────────────────
+// X=det, Y=trace. Matrices to the right of the parabola have complex eigenvalues
+// (disc = tr² − 4·det < 0); matrices to the left have real eigenvalues.
+function overlayDetTrace(xk, yk) {
+  const { min: yMin, max: yMax } = viewportLimits(yk, false);
+  const STEPS = 200;
+  ctx.save();
+  ctx.strokeStyle = '#8860c8';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.setLineDash([5, 4]);
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  for (let i = 0; i <= STEPS; i++) {
+    const traceVal = yMin + (i / STEPS) * (yMax - yMin);
+    const sx = dataToScreenX(traceVal * traceVal / 4, xk);
+    const sy = dataToScreenY(traceVal, yk);
+    i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ── Eigenvalues (real): diagonal + singular-matrix axes ──────────────────────
+// X=lmin, Y=lmax. Diagonal (lmin=lmax): repeated eigenvalue boundary.
+// Zero lines: at least one eigenvalue is zero → det=0 (singular matrix).
+function overlayLminLmax(xk, yk) {
+  const { min: xMin, max: xMax } = viewportLimits(xk, true);
+  const { min: yMin, max: yMax } = viewportLimits(yk, false);
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  // Diagonal: lmin = lmax (repeated eigenvalue boundary; region above is unpopulated)
+  const dMin = Math.max(xMin, yMin), dMax = Math.min(xMax, yMax);
+  if (dMin < dMax) {
+    ctx.strokeStyle = '#4878b0';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.globalAlpha = 0.5;
+    overlayLine(dMin, dMin, dMax, dMax, xk, yk);
+  }
+
+  // Axis lines: singular matrices (det = lmin · lmax = 0)
+  ctx.strokeStyle = '#b09060';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 5]);
+  ctx.globalAlpha = 0.4;
+  if (xMin < 0 && xMax > 0) overlayLine(0, yMin, 0, yMax, xk, yk); // lmin = 0
+  if (yMin < 0 && yMax > 0) overlayLine(xMin, 0, xMax, 0, xk, yk); // lmax = 0
+  ctx.restore();
+}
+
+// ── Stretch factors: diagonal σ₁ = σ₂ ────────────────────────────────────────
+// X=sigma1, Y=sigma2. By definition σ₁ ≥ σ₂ ≥ 0, so the diagonal is the lower
+// boundary of the populated region; it represents conformal (angle-preserving) maps.
+function overlaySigmas(xk, yk) {
+  const { min: xMin, max: xMax } = viewportLimits(xk, true);
+  const { min: yMin, max: yMax } = viewportLimits(yk, false);
+  const dMin = Math.max(xMin, yMin), dMax = Math.min(xMax, yMax);
+  if (dMin >= dMax) return;
+  ctx.save();
+  ctx.strokeStyle = '#4878b0';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.setLineDash([5, 4]);
+  ctx.globalAlpha = 0.5;
+  overlayLine(dMin, dMin, dMax, dMax, xk, yk);
+  ctx.restore();
+}
+
+// ── Polar decomposition: horizontal reference lines ───────────────────────────
+// X=polar_angle, Y=det. Lines at det=1 (area-preserving), det=−1 (orientation-
+// reversing with unit scaling), det=0 (singular).
+function overlayPolarDet(xk, yk) {
+  const { min: xMin, max: xMax } = viewportLimits(xk, true);
+  const { min: yMin, max: yMax } = viewportLimits(yk, false);
+  const hlines = [
+    { val:  1, col: '#4878b0', dash: [5, 4] },
+    { val: -1, col: '#b06040', dash: [5, 4] },
+    { val:  0, col: '#b09060', dash: [3, 5] },
+  ];
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (const { val, col, dash } of hlines) {
+    if (val < yMin || val > yMax) continue;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1;
+    ctx.setLineDash(dash);
+    ctx.globalAlpha = 0.45;
+    overlayLine(xMin, val, xMax, val, xk, yk);
+  }
+  ctx.restore();
+}
+
+// ── Determinant and norm: frob² = 2|det| V-boundary ──────────────────────────
+// X=det, Y=frob_sq. AM-GM gives σ₁²+σ₂² ≥ 2σ₁σ₂ so frob² ≥ 2|det|.
+// Equality (frob² = 2|det|, i.e., σ₁=σ₂) forms a V-shape at the lower boundary.
+function overlayDetFrob(xk, yk) {
+  const { min: xMin, max: xMax } = viewportLimits(xk, true);
+  ctx.save();
+  ctx.strokeStyle = '#4878b0';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.setLineDash([5, 4]);
+  ctx.globalAlpha = 0.5;
+  const rMin = Math.max(0, xMin), rMax = Math.max(0, xMax);  // right branch (det ≥ 0)
+  const lMin = Math.min(0, xMin), lMax = Math.min(0, xMax);  // left branch  (det ≤ 0)
+  if (rMin < rMax) overlayLine(rMin, 2 * rMin, rMax, 2 * rMax, xk, yk);
+  if (lMin < lMax) overlayLine(lMin, -2 * lMin, lMax, -2 * lMax, xk, yk);
+  ctx.restore();
+}
+
+// ── Diagonal components: crosshair at trace=0, diff_stretch=0 ────────────────
+// X=diff_stretch, Y=trace. Vertical: a=d (equal diagonal entries).
+// Horizontal: a+d=0 (traceless). Together they mark the origin of the diagonal
+// decomposition — the unique point where both diagonal symmetry and trace vanish.
+function overlayDiffStretchTrace(xk, yk) {
+  const { min: xMin, max: xMax } = viewportLimits(xk, true);
+  const { min: yMin, max: yMax } = viewportLimits(yk, false);
+  ctx.save();
+  ctx.strokeStyle = '#b09060';
+  ctx.lineWidth = 1;
+  ctx.lineCap = 'round';
+  ctx.setLineDash([3, 5]);
+  ctx.globalAlpha = 0.4;
+  if (xMin < 0 && xMax > 0) overlayLine(0, yMin, 0, yMax, xk, yk);  // diff_stretch = 0 (a = d)
+  if (yMin < 0 && yMax > 0) overlayLine(xMin, 0, xMax, 0, xk, yk);  // trace = 0
+  ctx.restore();
+}
+
+// ── Condition number: horizontal line at σ₂/σ₁ = 1 ──────────────────────────
+// X=sigma1, Y=inv_cond. The line marks conformal matrices (σ₁=σ₂): those that
+// scale every direction equally (rotations, reflections, uniform scalings).
+// All points lie at or below this line.
+function overlayInvCond(xk, yk) {
+  const { min: xMin, max: xMax } = viewportLimits(xk, true);
+  const { min: yMin, max: yMax } = viewportLimits(yk, false);
+  if (yMax < 1) return;  // line is above the visible range
+  ctx.save();
+  ctx.strokeStyle = '#4878b0';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.setLineDash([5, 4]);
+  ctx.globalAlpha = 0.5;
+  overlayLine(xMin, 1, xMax, 1, xk, yk);
+  ctx.restore();
+}
+
+// ── Eigenvalue polar form: unit-modulus line and 90° axis ────────────────────
+// X=ev_arg (degrees), Y=spec_rad. Two references:
+// spec_rad=1 (unit eigenvalue locus — repeated application neither grows nor shrinks).
+// ev_arg=90° (trace=0, purely imaginary eigenvalue: matrix is a pure rotation + scaling).
+function overlayEvArgSpecRad(xk, yk) {
+  const { min: xMin, max: xMax } = viewportLimits(xk, true);
+  const { min: yMin, max: yMax } = viewportLimits(yk, false);
+  ctx.save();
+  ctx.lineCap = 'round';
+  // spec_rad = 1
+  if (yMin <= 1 && yMax >= 1) {
+    ctx.strokeStyle = '#4878b0'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]); ctx.globalAlpha = 0.5;
+    overlayLine(xMin, 1, xMax, 1, xk, yk);
+  }
+  // ev_arg = 90° (tr = 0)
+  if (xMin <= 90 && xMax >= 90) {
+    ctx.strokeStyle = '#b09060'; ctx.lineWidth = 1;
+    ctx.setLineDash([3, 5]); ctx.globalAlpha = 0.4;
+    overlayLine(90, yMin, 90, yMax, xk, yk);
+  }
+  ctx.restore();
+}
+
+// Dispatch table: '{xk},{yk}' → overlay function.
+// drawAll() calls drawOverlays(xk, yk) inside the plot clip, before dots.
+const OVERLAY_FNS = {
+  'det,trace':            overlayDetTrace,
+  'lmin,lmax':            overlayLminLmax,
+  'sigma1,sigma2':        overlaySigmas,
+  'polar_angle,det':      overlayPolarDet,
+  'det,frob_sq':          overlayDetFrob,
+  'diff_stretch,trace':   overlayDiffStretchTrace,
+  'sigma1,inv_cond':      overlayInvCond,
+  'ev_arg,spec_rad':      overlayEvArgSpecRad,
+};
+
+function drawOverlays(xk, yk) {
+  const fn = OVERLAY_FNS[`${xk},${yk}`];
+  if (fn) fn(xk, yk);
+}
+
+
+// ── src/ui.js ───────────────────────────────────────
+
+// ════════════════════════════════════════════════
+//  UI — sidebar and panel rendering
+//
+//  Owns all sidebar DOM manipulation: axis/colour/preset
+//  selects, legend, parameter sliders, and the selected
+//  matrix panel. Pure consumer of engine state.
+//
+//  LAYER RULE: never writes curPos, vp, or layout.
+//  For an immediate (non-animated) position recompute
+//  after a parameter change, call updatePosImmediate()
+//  from app.js. All other recomputes (axis/preset changes)
+//  are triggered by event listeners in app.js.
+//
+//  Shared DOM refs (selX, selY, selC, selPreset, presetText)
+//  are declared as consts in app.js — event listeners in
+//  app.js need them too. ui.js reads them from the shared
+//  concatenated scope without re-declaring them here.
+//
+//  Depends on: properties.js (P, SC, SHORT_LABEL, fmtVal,
+//              getEffectiveLimits, isNumericColor, scaleForProp,
+//              scaleCssGradient), params.js (PARAMS),
+//              presets.js (PRESETS, PRESET_GROUPS, AXIS_GROUPS,
+//              COLOR_GROUPS), app.js (selX, selY, selC, selPreset,
+//              presetText, drawAll, updatePosImmediate),
+//              drawing.js (drawMatrixPanel, drawTransformPanel)
+// ════════════════════════════════════════════════
+
+// Display order for properties in the selected matrix panel.
+const SEL_PROP_ORDER = [
+  'det', 'trace', 'rank', 'orient',
+  'ev_type', 'lmin', 'lmax', 'im_lam', 'ev_arg',
+  'sigma1', 'sigma2', 'inv_cond', 'spec_rad', 'frob_sq',
+  'spin', 'shear', 'diff_stretch', 'polar_angle',
+  'symmetric', 'orthogonal', 'nilp_idem',
+];
+
+function buildSelectedPanel(m) {
+  document.getElementById('sel-placeholder').style.display = 'none';
+  document.getElementById('sel-content').style.display    = 'block';
+
+  // Draw matrix and transformation diagrams at device pixel ratio for sharpness
+  const dpr = window.devicePixelRatio || 1;
+  const matW = 90, matH = 80, tfmW = 112, tfmH = 80;
+
+  const matCv = document.getElementById('sel-mat-cv');
+  matCv.width = matW * dpr; matCv.height = matH * dpr;
+  matCv.style.width = matW + 'px'; matCv.style.height = matH + 'px';
+  const mc = matCv.getContext('2d');
+  mc.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawMatrixPanel(mc, 0, 0, matW, matH, m.a, m.b, m.c, m.d);
+
+  const tfmCv = document.getElementById('sel-tfm-cv');
+  tfmCv.width = tfmW * dpr; tfmCv.height = tfmH * dpr;
+  tfmCv.style.width = tfmW + 'px'; tfmCv.style.height = tfmH + 'px';
+  const tc = tfmCv.getContext('2d');
+  tc.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawTransformPanel(tc, 0, 0, tfmW, tfmH, m.a, m.b, m.c, m.d, globalTheta);
+
+  // Property grid — all computed properties. sel-k gets a title= tooltip.
+  document.getElementById('sel-props').innerHTML = SEL_PROP_ORDER.map(k => {
+    const tip = PROP_TOOLTIP[k] ? ` title="${PROP_TOOLTIP[k]}"` : '';
+    return `<div class="sel-prop">
+       <span class="sel-k"${tip}>${SHORT_LABEL[k] ?? k}</span>
+       <span class="sel-v">${fmtVal(m[k])}</span>
+     </div>`;
+  }).join('');
+
+  // Store matrix on explore button so the listener can read it
+  document.getElementById('sel-explore').dataset.matrix =
+    `${m.a},${m.b},${m.c},${m.d}`;
+}
+
+function clearSelectedPanel() {
+  document.getElementById('sel-placeholder').style.display = 'block';
+  document.getElementById('sel-content').style.display    = 'none';
+}
+
+function buildSelects() {
+  for (const group of AXIS_GROUPS) {
+    if (group.label) {
+      const grp = document.createElement('optgroup');
+      grp.label = group.label;
+      for (const k of group.keys) grp.appendChild(new Option(P[k].label, k));
+      selX.appendChild(grp.cloneNode(true));
+      selY.appendChild(grp);
+    } else {
+      for (const k of group.keys) {
+        selX.appendChild(new Option(P[k].label, k));
+        selY.appendChild(new Option(P[k].label, k));
+      }
+    }
+  }
+  const COLOR_LABELS = { no_color: 'None (uniform)', random_color: 'Random' };
+  for (const group of COLOR_GROUPS) {
+    const grp = document.createElement('optgroup');
+    grp.label = group.label;
+    for (const k of group.keys) grp.appendChild(new Option(COLOR_LABELS[k] ?? P[k]?.label ?? k, k));
+    selC.appendChild(grp);
+  }
+  selPreset.appendChild(new Option(PRESETS[0].label, 0));
+  let idx = 1;
+  for (const group of PRESET_GROUPS) {
+    const grp = document.createElement('optgroup');
+    grp.label = group.label;
+    for (const p of group.presets) grp.appendChild(new Option(p.label, idx++));
+    selPreset.appendChild(grp);
+  }
+  selX.value = 'none'; selY.value = 'none'; selC.value = 'orient';
+  selPreset.value = 1;
+}
+
+function applyPreset(idx) {
+  const p = PRESETS[idx];
+  if (!p || p.xk === null) return;
+  selX.value = p.xk; selY.value = p.yk; selC.value = p.ck;
+  buildLegend();
+  presetText.innerHTML = p.text;
+  presetText.style.display = 'block';
+}
+
+function clearPreset() {
+  selPreset.value = 0;
+  presetText.style.display = 'none';
+}
+
+function buildLegend() {
+  const ck = selC.value;
+  const el = document.getElementById('legend');
+  if (ck === 'no_color') {
+    el.innerHTML = `<div class="leg"><div class="leg-dot" style="background:#4a7bb5"></div>all matrices</div>`;
+    return;
+  }
+  if (ck === 'random_color') {
+    el.innerHTML = `<div class="leg" style="font-style:italic;color:#9aa0ad">one colour per matrix</div>`;
+    return;
+  }
+  if (isNumericColor(ck)) {
+    const { min, max } = getEffectiveLimits(ck);
+    const stops = scaleForProp(ck);
+    const grad  = scaleCssGradient(stops);
+    const is3   = stops.length === 3;
+    const fmtN  = v => Number.isInteger(v) ? String(v) : v.toFixed(1);
+    el.innerHTML = `
+      <div style="height:12px;border-radius:2px;background:${grad};margin-bottom:4px"></div>
+      <div style="display:flex;justify-content:space-between;font-size:0.75em;color:#9aa0ad">
+        <span>${fmtN(min)}</span>${is3 ? `<span>${fmtN((min+max)/2)}</span>` : ''}<span>${fmtN(max)}</span>
+      </div>`;
+    return;
+  }
+  const scheme = SC[ck];
+  if (!scheme) { el.innerHTML = ''; return; }
+  el.innerHTML = Object.entries(scheme)
+    .map(([k, c]) => `<div class="leg"><div class="leg-dot" style="background:${c}"></div>${k}</div>`)
+    .join('');
+}
+
+function buildParams() {
+  const el = document.getElementById('params-controls');
+  if (!el) return;
+  el.innerHTML = '';
+  for (const [key, p] of Object.entries(PARAMS)) {
+    const row = document.createElement('div');
+    row.className = 'param-row';
+    const valSpan = document.createElement('span');
+    valSpan.className = 'param-val';
+    valSpan.textContent = p.value;
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = p.min; slider.max = p.max; slider.step = p.step;
+    slider.value = p.value;
+    slider.dataset.key = key;
+    slider.addEventListener('input', () => {
+      p.value = +slider.value;
+      valSpan.textContent = p.value;
+      if (p.recompute) updatePosImmediate(); else drawAll();
+    });
+    const hdr = document.createElement('div');
+    hdr.className = 'param-hdr';
+    const lbl = document.createElement('label');
+    lbl.textContent = p.label;
+    if (p.tooltip) { lbl.title = p.tooltip; lbl.style.cursor = 'help'; }
+    hdr.appendChild(lbl);
+    hdr.appendChild(valSpan);
+    row.appendChild(hdr);
+    row.appendChild(slider);
+    el.appendChild(row);
+  }
+}
+</script>
+</body>
+</html>

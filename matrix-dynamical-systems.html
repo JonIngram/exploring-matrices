@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linear Dynamical Systems</title>
+<script>
+window.MathJax = {
+  tex: { inlineMath:[['\\(','\\)']], displayMath:[['\\[','\\]']] },
+  startup: { typeset:false },
+  options: { skipHtmlTags:['script','noscript','style','textarea'] }
+};
+</script>
+<script async id="MathJax-script"
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:'Georgia','Times New Roman',serif;
+  background:#f0ece4;display:flex;flex-direction:column;
+  min-height:100vh;overflow-y:auto;
+}
+#sidebar{display:contents;}
+#sec-header  {order:1;}  #sec-matrix  {order:2;}  #sec-td     {order:3;}
+#sec-mode    {order:4;}  #sec-display {order:5;}   #cvs-wrap   {order:6;}
+#sec-analysis{order:7;}  #sec-help    {order:8;}
+
+.ctrl{background:#faf8f4;padding:14px 16px;border-bottom:1px solid #e8e2d8;}
+.ctrl>*+*{margin-top:9px;}
+#sec-header{position:relative;}
+h1{font-size:15px;font-weight:700;color:#2a1f0e;letter-spacing:-.2px;padding-right:32px;}
+.app-sub{font-size:11px;color:#9a8e7a;font-style:italic;margin-top:3px;}
+.sec-title{
+  font-family:system-ui,sans-serif;font-size:9.5px;font-weight:700;
+  color:#a09070;text-transform:uppercase;letter-spacing:.08em;
+}
+/* Input-view toggle (Matrix | Equations) */
+.imode-row{display:flex;border:1.5px solid #d8d0c4;border-radius:5px;overflow:hidden;}
+.imode-btn{
+  flex:1;padding:5px 4px;border:none;background:#fff;
+  font-size:10.5px;font-family:system-ui,sans-serif;font-weight:600;
+  color:#6a5a40;cursor:pointer;transition:background .1s,color .1s;
+}
+.imode-btn.active{background:#3a2e1e;color:#fff;}
+.imode-btn:not(.active):hover{background:#f0ece4;}
+/* Matrix inputs */
+.mat-wrap{display:flex;align-items:center;gap:6px;}
+.mat-bracket{font-size:44px;color:#c8b898;font-weight:300;line-height:1;
+             font-family:'Georgia',serif;user-select:none;}
+.mat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;flex:1;}
+.mat-in{
+  width:100%;text-align:center;border:1.5px solid #d8d0c4;border-radius:4px;
+  padding:5px 4px;font-size:17px;font-family:'Courier New',monospace;font-weight:700;
+  color:#1a1008;background:#fff;outline:none;-moz-appearance:textfield;
+  transition:border-color .15s,box-shadow .15s;
+}
+.mat-in::-webkit-inner-spin-button,.mat-in::-webkit-outer-spin-button{-webkit-appearance:none;}
+.mat-in:focus{border-color:#6b8cba;box-shadow:0 0 0 3px rgba(107,140,186,.18);}
+/* CDE view */
+.cde-line{display:flex;align-items:center;gap:3px;flex-wrap:wrap;}
+.cde-line+.cde-line{margin-top:8px;}
+.cde-lhs{
+  font-family:system-ui,sans-serif;font-size:12px;font-style:italic;
+  color:#6a5a40;flex-shrink:0;white-space:nowrap;padding-right:2px;
+}
+.cde-in{
+  width:58px;text-align:center;border:none;border-bottom:2px solid #c8b898;
+  background:transparent;font-size:15px;font-family:'Courier New',monospace;
+  font-weight:700;color:#1a1008;outline:none;-moz-appearance:textfield;
+  padding:2px 0;flex-shrink:0;transition:border-color .15s;
+}
+.cde-in:focus{border-bottom-color:#6b8cba;}
+.cde-in::-webkit-inner-spin-button,.cde-in::-webkit-outer-spin-button{-webkit-appearance:none;}
+.cde-var{font-family:'Georgia',serif;font-size:14px;color:#2a1f0e;flex-shrink:0;}
+/* Shared select */
+select{
+  width:100%;padding:6px 8px;border:1.5px solid #d8d0c4;border-radius:4px;
+  font-size:12px;font-family:system-ui,sans-serif;background:#fff;color:#2a1f0e;
+  outline:none;cursor:pointer;transition:border-color .15s;
+}
+select:focus{border-color:#6b8cba;}
+/* Sliders */
+.param-row{display:flex;align-items:center;gap:6px;}
+.param-lbl{
+  font-family:system-ui,sans-serif;font-size:11px;color:#6a5a40;
+  width:72px;flex-shrink:0;white-space:nowrap;
+}
+.param-row input[type=range]{flex:1;accent-color:#5a7aaa;cursor:pointer;height:16px;}
+.param-val{
+  font-family:'Courier New',monospace;font-size:11px;color:#2a1f0e;
+  min-width:38px;text-align:right;flex-shrink:0;
+}
+/* Collapsible sections */
+details.ctrl>summary{
+  font-family:system-ui,sans-serif;font-size:9.5px;font-weight:700;color:#a09070;
+  text-transform:uppercase;letter-spacing:.08em;cursor:pointer;list-style:none;
+  display:flex;align-items:center;gap:5px;user-select:none;
+}
+details.ctrl>summary::-webkit-details-marker{display:none;}
+details.ctrl>summary::before{content:'▸';font-size:10px;color:#c0a878;flex-shrink:0;}
+details.ctrl[open]>summary::before{content:'▾';}
+details.ctrl[open]>summary{margin-bottom:9px;}
+/* Mode buttons */
+.mode-sel{display:flex;gap:5px;}
+.mode-btn{
+  flex:1;padding:6px 4px;border:1.5px solid #d8d0c4;border-radius:5px;
+  font-size:11.5px;font-family:system-ui,sans-serif;font-weight:600;
+  background:#fff;color:#6a5a40;cursor:pointer;text-align:center;
+  transition:background .12s,color .12s,border-color .12s;user-select:none;
+}
+.mode-btn:hover{border-color:#b0a090;background:#f5f0e8;}
+.mode-btn.active{background:#3a2e1e;color:#fff;border-color:#3a2e1e;}
+/* Toggles */
+.tog{
+  display:flex;align-items:center;gap:8px;font-family:system-ui,sans-serif;
+  font-size:12px;color:#3a2e1e;cursor:pointer;padding:2px 0;user-select:none;
+}
+.tog+.tog{margin-top:4px;}
+.tog input[type=checkbox]{cursor:pointer;accent-color:#5a7aaa;width:14px;height:14px;flex-shrink:0;}
+.swatch{width:18px;height:10px;border-radius:2px;flex-shrink:0;}
+.swatch-half{display:inline-flex;width:18px;height:10px;border-radius:2px;overflow:hidden;flex-shrink:0;}
+.swatch-half span{flex:1;}
+.axis-sub{padding-left:22px;margin-top:6px;}
+/* Analysis */
+/* Analysis type label colour classes */
+.stable   {color:#2255bb;font-weight:600;}
+.unstable {color:#bb3311;font-weight:600;}
+.neutral  {color:#2a8840;font-weight:600;}
+.saddle   {color:#884499;font-weight:600;}
+.degen    {color:#888870;font-weight:600;}
+/* Equation sidebar section */
+/* (equation system typesetting removed — see CDE input view) */
+/* Help */
+#help-text{font-family:system-ui,sans-serif;font-size:11.5px;line-height:1.6;color:#6a5a40;}
+/* TD panel */
+#sec-td canvas{display:block;border-radius:3px;border:1px solid #e0dbd0;cursor:crosshair;}
+#td-hint{font-family:system-ui,sans-serif;font-size:10px;color:#a09070;}
+/* Canvas area */
+#cvs-wrap{
+  display:flex;align-items:center;justify-content:center;
+  padding:12px 8px;background:#f0ece4;position:relative;
+}
+#cvs-box{
+  position:relative;
+  width:min(calc(100vw - 16px),75vh);height:min(calc(100vw - 16px),75vh);
+  background:#fff;border-radius:8px;overflow:hidden;
+  box-shadow:0 4px 24px rgba(60,40,0,.12),0 1px 4px rgba(60,40,0,.08);
+  user-select:none;touch-action:none;
+}
+#cvs-bg,#cvs-fg{position:absolute;top:0;left:0;width:100%;height:100%;}
+#cvs-bg{pointer-events:none;will-change:transform;}
+#cvs-fg{cursor:crosshair;}
+#zoom-btns{position:absolute;top:10px;right:10px;display:flex;gap:4px;z-index:10;}
+#zoom-btns button{
+  width:24px;height:24px;border:1.5px solid #d8d0c4;border-radius:4px;
+  background:rgba(250,248,244,.88);font-size:15px;font-family:system-ui,sans-serif;
+  font-weight:500;color:#3a2e1e;cursor:pointer;padding:0;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .1s,border-color .1s;
+}
+#zoom-btns button:hover{background:#faf8f4;border-color:#b0a090;}
+#clear-wrap{position:absolute;bottom:10px;right:10px;z-index:10;}
+#clear-btn{
+  padding:6px 12px;border:1.5px solid #d8d0c4;border-radius:5px;
+  background:rgba(250,248,244,.88);font-size:11px;font-family:system-ui,sans-serif;
+  font-weight:600;color:#3a2e1e;cursor:pointer;
+  transition:background .1s,border-color .1s;
+}
+#clear-btn:hover{background:#faf8f4;border-color:#b0a090;}
+/* Hover tooltip */
+#sol-tooltip{
+  position:absolute;z-index:50;pointer-events:none;
+  background:rgba(252,250,246,.97);border:1.5px solid #d0c8bc;border-radius:8px;
+  padding:11px 14px;max-width:min(380px,calc(100vw - 24px));
+  box-shadow:0 4px 18px rgba(60,40,0,.16),0 1px 4px rgba(60,40,0,.08);
+  display:none;
+}
+.tip-seed{
+  font-family:system-ui,sans-serif;font-size:10px;font-weight:700;
+  color:#a09070;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;
+}
+.tip-math{font-size:12px;line-height:1.4;}
+.tip-behav{
+  font-family:system-ui,sans-serif;font-size:10.5px;color:#6a5a40;font-style:italic;
+  border-top:1px solid #e8e2d8;margin-top:7px;padding-top:6px;
+}
+@media(min-width:640px){
+  body{flex-direction:row;height:100vh;min-height:unset;overflow:hidden;}
+  #sidebar{
+    display:flex;flex-direction:column;width:270px;min-width:270px;
+    background:#faf8f4;border-right:1px solid #d8d0c4;
+    overflow-y:auto;box-shadow:2px 0 8px rgba(60,40,0,.08);z-index:1;
+    transition:width .2s,min-width .2s;
+  }
+  body.sidebar-hidden #sidebar{width:0;min-width:0;overflow:hidden;border-right:none;}
+  body.sidebar-hidden #sidebar-reopen{display:flex;align-items:center;justify-content:center;}
+  #sidebar-toggle{
+    position:absolute;top:10px;right:10px;
+    width:24px;height:24px;border:1.5px solid #d8d0c4;border-radius:4px;
+    background:rgba(250,248,244,.9);cursor:pointer;display:flex;
+    align-items:center;justify-content:center;
+    font-size:11px;color:#6a5a40;
+    transition:background .1s,border-color .1s;user-select:none;
+  }
+  #sidebar-toggle:hover{background:#f0ece4;border-color:#b0a090;}
+  #sec-header,#sec-matrix,#sec-td,#sec-mode,#sec-display,
+  #sec-analysis,#sec-help,#cvs-wrap{order:unset;}
+  #sec-help{margin-top:auto;}
+  #cvs-wrap{flex:1;padding:0;position:relative;}
+  #cvs-box{position:absolute;inset:0;width:auto;height:auto;border-radius:0;box-shadow:none;}
+}
+/* Re-open button on canvas edge — only shown when sidebar is hidden */
+#sidebar-reopen{
+  display:none;position:absolute;top:10px;left:10px;z-index:20;
+  width:24px;height:24px;border:1.5px solid #d8d0c4;border-radius:4px;
+  background:rgba(250,248,244,.9);cursor:pointer;
+  font-size:11px;color:#6a5a40;line-height:1;
+  transition:background .1s,border-color .1s;user-select:none;
+}
+#sidebar-reopen:hover{background:#f0ece4;border-color:#b0a090;}
+/* Fine tuning subheader inside TD section */
+.fine-tune-hdr{
+  font-family:system-ui,sans-serif;font-size:9.5px;font-weight:700;
+  color:#a09070;text-transform:uppercase;letter-spacing:.08em;
+  margin-top:10px;cursor:help;
+}
+.fine-params{display:flex;flex-direction:column;gap:5px;margin-top:4px;}
+.fine-params .param-lbl{width:auto;min-width:0;padding-right:2px;}
+.fine-params input[type=range]{min-width:0;}
+</style>
+</head>
+<body>
+<div id="sidebar">
+
+  <div class="ctrl" id="sec-header">
+    <h1>Linear Dynamical Systems</h1>
+    <div class="app-sub">Explore the behaviour of linear dynamical systems</div>
+    <button id="sidebar-toggle" title="Hide panel">◀</button>
+  </div>
+
+  <div class="ctrl" id="sec-matrix">
+    <div class="sec-title">System</div>
+    <!-- Input view toggle -->
+    <div class="imode-row">
+      <button class="imode-btn active" data-imode="matrix">Matrix</button>
+      <button class="imode-btn"        data-imode="equations">Equations</button>
+    </div>
+    <!-- Matrix grid view -->
+    <div id="iview-matrix">
+      <div class="mat-wrap">
+        <div class="mat-bracket">[</div>
+        <div class="mat-grid">
+          <input class="mat-in" type="number" id="m00" step="0.1">
+          <input class="mat-in" type="number" id="m01" step="0.1">
+          <input class="mat-in" type="number" id="m10" step="0.1">
+          <input class="mat-in" type="number" id="m11" step="0.1">
+        </div>
+        <div class="mat-bracket">]</div>
+      </div>
+    </div>
+    <!-- CDE equations view -->
+    <div id="iview-eqs" style="display:none">
+      <div class="cde-line">
+        <span class="cde-lhs">dx/dt&nbsp;=</span>
+        <input class="cde-in" type="number" id="cde-a" step="0.1">
+        <span class="cde-var">&thinsp;x&nbsp;+</span>
+        <input class="cde-in" type="number" id="cde-b" step="0.1">
+        <span class="cde-var">&thinsp;y</span>
+      </div>
+      <div class="cde-line">
+        <span class="cde-lhs">dy/dt&nbsp;=</span>
+        <input class="cde-in" type="number" id="cde-c" step="0.1">
+        <span class="cde-var">&thinsp;x&nbsp;+</span>
+        <input class="cde-in" type="number" id="cde-d" step="0.1">
+        <span class="cde-var">&thinsp;y</span>
+      </div>
+    </div>
+    <select id="presets"><option value="">— presets —</option></select>
+  </div>
+
+  <details class="ctrl" id="sec-td">
+    <summary>Trace–Determinant Plane</summary>
+    <canvas id="td-cvs" width="212" height="138" title="Drag to move through parameter space. Each region corresponds to a different type of behaviour."></canvas>
+    <div class="fine-tune-hdr" title="These sliders alter the system's behaviour without changing the trace or determinant">Fine tuning</div>
+    <div class="fine-params">
+      <div class="param-row">
+        <span class="param-lbl">Tilt</span>
+        <input type="range" id="sl-s" min="-3" max="3" step="0.1" value="0">
+        <span class="param-val" id="sl-s-val">0.00</span>
+      </div>
+      <div class="param-row">
+        <span class="param-lbl">Rotation</span>
+        <input type="range" id="sl-rho" min="-3" max="3" step="0.1" value="-2">
+        <span class="param-val" id="sl-rho-val">-2.00</span>
+      </div>
+    </div>
+  </details>
+
+  <div class="ctrl" id="sec-mode">
+    <div class="sec-title">Mode</div>
+    <div class="mode-sel">
+      <button class="mode-btn active" data-mode="animated">Animated</button>
+      <button class="mode-btn"        data-mode="trails">Trails</button>
+    </div>
+    <div id="speed-row" class="param-row" title="Controls how fast time runs. Drag left for negative time (backwards evolution).">
+      <span class="param-lbl">Speed</span>
+      <input type="range" id="sl-speed" min="-3" max="3" step="0.25" value="1">
+      <span class="param-val" id="sl-speed-val">1×</span>
+    </div>
+  </div>
+
+  <details class="ctrl" id="sec-display">
+    <summary>Display</summary>
+    <!-- Toggles -->
+    <label class="tog" title="Small arrows at each grid point showing the direction of Mx">
+      <input type="checkbox" id="t-field" checked>
+      <span class="swatch" style="background:#c0bab0"></span>Direction field</label>
+    <label class="tog" title="Dashed lines through the origin along the eigenvector directions. Blue = trajectories converge along this line; red = diverge">
+      <input type="checkbox" id="t-eigen" checked>
+      <span class="swatch-half"><span style="background:#3c64c8"></span><span style="background:#c84020"></span></span>Eigenvector directions</label>
+    <label class="tog" title="Green dashed: dx/dt = 0 along this line. Purple dashed: dy/dt = 0 along this line. Both always pass through the origin.">
+      <input type="checkbox" id="t-null">
+      <span class="swatch-half"><span style="background:#2c8c2c"></span><span style="background:#8c2c8c"></span></span>Nullclines</label>
+    <label class="tog" id="row-bwd" title="Also trace each trajectory backwards in time from the starting point">
+      <input type="checkbox" id="t-bwd">
+      <span class="swatch" style="background:#1a2a4a;opacity:.38"></span>Trace backwards in time</label>
+    <label class="tog" title="Show trajectories from the four axis starting points (±k, 0) and (0, ±k)">
+      <input type="checkbox" id="t-axis">
+      <span class="swatch" style="background:#4466aa;opacity:.6"></span>Axis starting points</label>
+    <div class="axis-sub" id="axis-opts" style="display:none">
+      <div style="font-family:system-ui,sans-serif;font-size:10px;color:#a09070;">Starting points at (±1, 0) and (0, ±1)</div>
+    </div>
+  </details>
+
+  <details class="ctrl" id="sec-analysis">
+    <summary>Analysis</summary>
+    <canvas id="argand-cvs" width="212" height="118" style="display:block;border-radius:3px;border:1px solid #e0dbd0;margin-bottom:8px;"></canvas>
+    <div id="analysis-type" style="font-family:system-ui,sans-serif;font-size:11.5px;font-weight:600;margin-bottom:6px;"></div>
+    <div id="analysis-text" style="font-family:system-ui,sans-serif;font-size:11.5px;line-height:1.65;color:#3a2e1e;"></div>
+  </details>
+
+
+  <div class="ctrl" id="sec-help">
+    <div class="sec-title">How to use</div>
+    <div id="help-text"></div>
+  </div>
+
+</div><!-- /sidebar -->
+
+<div id="cvs-wrap">
+  <!-- Re-open button: only visible when sidebar is hidden -->
+  <button id="sidebar-reopen" title="Show panel" onclick="document.getElementById('sidebar-toggle').click()">▶</button>
+  <div id="cvs-box">
+    <canvas id="cvs-bg"></canvas>
+    <canvas id="cvs-fg"></canvas>
+    <div id="zoom-btns">
+      <button id="zoom-in">+</button>
+      <button id="zoom-out">−</button>
+    </div>
+    <div id="clear-wrap">
+      <button id="clear-btn">Clear starting points</button>
+    </div>
+  </div>
+  <div id="sol-tooltip">
+    <div class="tip-seed"></div>
+    <div class="tip-math"></div>
+    <div class="tip-behav"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════════════
+// PRESETS
+// ══════════════════════════════════════════════════════════
+const PRESETS = [
+  { name:'Spiral sink',                  M:[[-1,-2],[ 2,-1]] },
+  { name:'Spiral source',                M:[[ 1,-2],[ 2, 1]] },
+  { name:'Centre (closed orbits)',        M:[[ 0,-2],[ 2, 0]] },
+  { name:'Saddle',                        M:[[ 1, 2],[ 2, 1]] },
+  { name:'Node sink',                     M:[[-3, 1],[ 0,-2]] },
+  { name:'Node source',                   M:[[ 2, 1],[ 0, 3]] },
+  { name:'Improper node (sink)',          M:[[-1, 1],[ 0,-1]] },
+  { name:'Degenerate (line of equilibria)',M:[[ 1,-1],[ 2,-2]] },
+];
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+let M   = PRESETS[0].M.map(r=>[...r]);
+let SC  = 60;
+const SC_MIN=12, SC_MAX=220;
+let W=0, H=0;
+
+let mode       = 'animated';
+let inputMode  = 'matrix';
+let speedFactor = 1;
+let userBalls  = [];
+let bgParticles= [];
+let axisBalls  = [];
+let axisK      = 1;
+let animID     = null;
+
+let dragBall=-1, dragHasMoved=false, ballWasNew=false, hoverBall=-1;
+let tdDragging=false;
+
+let tog = { field:true, eigen:true, nullclines:false, bwd:false, axis:false };
+
+const DT=0.02, ANIM_SCALE=0.4, ESCAPE_R=14, TRAJ_T_MAX=10;
+const BG_N=25, BG_TRAIL=22, BG_MAX_AGE=500;
+const USER_TRAIL=65, USER_MAX_AGE=800;
+const TAU_MIN=-5, TAU_MAX=5, DEL_MIN=-2.5, DEL_MAX=7;
+
+// ══════════════════════════════════════════════════════════
+// MATH — core
+// ══════════════════════════════════════════════════════════
+function fv(x,y){ return{x:M[0][0]*x+M[0][1]*y, y:M[1][0]*x+M[1][1]*y}; }
+
+function rk4(x,y,dt){
+  const k1=fv(x,y);
+  const k2=fv(x+dt/2*k1.x, y+dt/2*k1.y);
+  const k3=fv(x+dt/2*k2.x, y+dt/2*k2.y);
+  const k4=fv(x+dt*k3.x,   y+dt*k3.y);
+  return{x:x+dt/6*(k1.x+2*k2.x+2*k3.x+k4.x),y:y+dt/6*(k1.y+2*k2.y+2*k3.y+k4.y)};
+}
+
+function integrate(x0,y0){
+  function branch(dt){
+    const pts=[{x:x0,y:y0}]; let p={x:x0,y:y0};
+    for(let t=0;t<TRAJ_T_MAX;t+=Math.abs(dt)){
+      p=rk4(p.x,p.y,dt);
+      if(!isFinite(p.x)||!isFinite(p.y))break;
+      pts.push({x:p.x,y:p.y});
+      if(p.x*p.x+p.y*p.y>ESCAPE_R*ESCAPE_R)break;
+    }
+    return pts;
+  }
+  return{fwd:branch(DT),bwd:branch(-DT)};
+}
+
+function eigenvec(a,b,c,d,lambda){
+  let vx=b, vy=lambda-a;
+  if(Math.hypot(vx,vy)<1e-10){vx=lambda-d;vy=c;}
+  const len=Math.hypot(vx,vy);
+  return len>1e-10?{x:vx/len,y:vy/len}:{x:1,y:0};
+}
+
+function matProps(){
+  const a=M[0][0],b=M[0][1],c=M[1][0],d=M[1][1];
+  const tau=a+d, delta=a*d-b*c, disc=tau*tau-4*delta, EPS=1e-8;
+  if(Math.abs(delta)<EPS)
+    return{tau,delta,disc,evals:'real',type:'degenerate',
+           lambda:[0,tau],evecs:[eigenvec(a,b,c,d,0),eigenvec(a,b,c,d,tau)]};
+  if(delta<0){
+    const sq=Math.sqrt(Math.max(disc,0)),l1=(tau+sq)/2,l2=(tau-sq)/2;
+    return{tau,delta,disc,evals:'real',type:'saddle',
+           lambda:[l1,l2],evecs:[eigenvec(a,b,c,d,l1),eigenvec(a,b,c,d,l2)]};
+  }
+  if(disc<-EPS){
+    const alpha=tau/2,beta=Math.sqrt(-disc)/2;
+    const type=Math.abs(alpha)<1e-6?'centre':alpha<0?'stable_spiral':'unstable_spiral';
+    return{tau,delta,disc,evals:'complex',type,alpha,beta,evecs:null};
+  }
+  if(disc>EPS){
+    const sq=Math.sqrt(disc),l1=(tau+sq)/2,l2=(tau-sq)/2;
+    const type=tau<-EPS?'stable_node':tau>EPS?'unstable_node':'degenerate';
+    return{tau,delta,disc,evals:'real',type,lambda:[l1,l2],
+           evecs:[eigenvec(a,b,c,d,l1),eigenvec(a,b,c,d,l2)]};
+  }
+  const lambda=tau/2;
+  const isScalar=Math.abs(b)<EPS&&Math.abs(c)<EPS&&Math.abs(a-d)<EPS;
+  const type=isScalar
+    ?(lambda<-EPS?'stable_star':lambda>EPS?'unstable_star':'zero_matrix')
+    :(lambda<-EPS?'stable_improper':lambda>EPS?'unstable_improper':'degenerate');
+  return{tau,delta,disc,evals:'repeated',type,lambda:[lambda],
+         evecs:isScalar?null:[eigenvec(a,b,c,d,lambda)]};
+}
+
+// ══════════════════════════════════════════════════════════
+// MATH — matrix parameterisation
+// ══════════════════════════════════════════════════════════
+function getSRho(){
+  return{s:(M[0][0]-M[1][1])/2, rho:(M[0][1]-M[1][0])/2};
+}
+function matFromTauDeltaSRho(tau,delta,s,rho){
+  const a=tau/2+s, d=tau/2-s;
+  const bc=tau*tau/4-s*s-delta;
+  const sigma2=rho*rho+bc;
+  let b,c;
+  if(sigma2>=0){const sigma=Math.sqrt(sigma2);b=sigma+rho;c=sigma-rho;}
+  else{const rAdj=bc<=0?Math.sign(rho||1)*Math.sqrt(-bc):0;b=rAdj;c=-rAdj;}
+  return[[a,b],[c,d]];
+}
+
+// ══════════════════════════════════════════════════════════
+// MATH — exact solution
+// ══════════════════════════════════════════════════════════
+function complexEigenvecParts(a,b,c,d,alpha,beta){
+  const reA=a-alpha, D=reA*reA+beta*beta;
+  if(D>1e-10) return{px:-b*reA/D,py:1,qx:-b*beta/D,qy:0};
+  const reD=d-alpha, D2=reD*reD+beta*beta;
+  if(D2>1e-10) return{px:1,py:-c*reD/D2,qx:0,qy:-c*beta/D2};
+  return{px:1,py:0,qx:0,qy:1};
+}
+
+function generalizedEigenvec(a,b,c,d,lambda,v){
+  const A=a-lambda,B=b,C=c,D=d-lambda;
+  const n1=Math.hypot(A,B),n2=Math.hypot(C,D);
+  if(n1>=n2){return Math.abs(B)>=Math.abs(A)?{x:0,y:v.x/B}:{x:v.x/A,y:0};}
+  else{       return Math.abs(D)>=Math.abs(C)?{x:0,y:v.y/D}:{x:v.y/C,y:0};}
+}
+
+function exactSolution(x0,y0){
+  const p=matProps();
+  if(p.type==='zero_matrix')return null;
+  if(p.evals==='complex'){
+    const{alpha,beta}=p;
+    const{px,py,qx,qy}=complexEigenvecParts(M[0][0],M[0][1],M[1][0],M[1][1],alpha,beta);
+    const det=px*qy-qx*py;
+    const c1=Math.abs(det)<1e-10?x0:(x0*qy-y0*qx)/det;
+    const c2=Math.abs(det)<1e-10?y0:(y0*px-x0*py)/det;
+    return{type:'complex',alpha,beta,
+           Ax:c1*px+c2*qx,Bx:c2*px-c1*qx,
+           Ay:c1*py+c2*qy,By:c2*py-c1*qy};
+  }
+  if(p.evals==='repeated'){
+    const lambda=p.lambda[0];
+    if(!p.evecs)return{type:'star',lambda,x0,y0};
+    const v=p.evecs[0];
+    const a=M[0][0],b=M[0][1],c=M[1][0],d=M[1][1];
+    const w=generalizedEigenvec(a,b,c,d,lambda,v);
+    const det2=v.x*w.y-w.x*v.y;
+    const c1=Math.abs(det2)<1e-10?x0:(x0*w.y-y0*w.x)/det2;
+    const c2=Math.abs(det2)<1e-10?0:(y0*v.x-x0*v.y)/det2;
+    return{type:'improper',lambda,
+           Px:c1*v.x+c2*w.x,Qx:c2*v.x,
+           Py:c1*v.y+c2*w.y,Qy:c2*v.y};
+  }
+  const[l1,l2]=p.lambda,[ev1,ev2]=p.evecs;
+  const det=ev1.x*ev2.y-ev2.x*ev1.y;
+  const c1=Math.abs(det)<1e-10?x0:(x0*ev2.y-y0*ev2.x)/det;
+  const c2=Math.abs(det)<1e-10?y0:(y0*ev1.x-x0*ev1.y)/det;
+  return{type:'real',l1,l2,Ax:c1*ev1.x,Bx:c2*ev2.x,Ay:c1*ev1.y,By:c2*ev2.y};
+}
+
+// ══════════════════════════════════════════════════════════
+// CANVAS & COORDS
+// ══════════════════════════════════════════════════════════
+const bgCvs=document.getElementById('cvs-bg'), fgCvs=document.getElementById('cvs-fg');
+const bgCtx=bgCvs.getContext('2d'),            fgCtx=fgCvs.getContext('2d');
+const wx=x=>W/2+x*SC, wy=y=>H/2-y*SC;
+const cw=cx=>(cx-W/2)/SC, ch=cy=>(H/2-cy)/SC;
+
+function updateCanvasSize(){
+  const box=document.getElementById('cvs-box');
+  W=box.offsetWidth||600; H=box.offsetHeight||600;
+  bgCvs.width=fgCvs.width=W; bgCvs.height=fgCvs.height=H;
+}
+
+// ══════════════════════════════════════════════════════════
+// DRAW HELPERS
+// ══════════════════════════════════════════════════════════
+function arrowhead(ctx,x1,y1,x2,y2,sz){
+  const a=Math.atan2(y2-y1,x2-x1),s=0.38;
+  ctx.beginPath();ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-sz*Math.cos(a-s),y2-sz*Math.sin(a-s));
+  ctx.lineTo(x2-sz*Math.cos(a+s),y2-sz*Math.sin(a+s));
+  ctx.closePath();ctx.fill();
+}
+function lineThrough(ctx,vx,vy,color,dash){
+  ctx.save();ctx.strokeStyle=color;ctx.setLineDash(dash||[]);ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(wx(-30*vx),wy(-30*vy));ctx.lineTo(wx(30*vx),wy(30*vy));
+  ctx.stroke();ctx.restore();
+}
+function drawPolyline(ctx,pts,alpha,lw,color,withArrow){
+  if(!pts||pts.length<2)return;
+  ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle=color;
+  ctx.lineWidth=lw;ctx.lineJoin='round';ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(wx(pts[0].x),wy(pts[0].y));
+  for(let i=1;i<pts.length;i++)ctx.lineTo(wx(pts[i].x),wy(pts[i].y));
+  ctx.stroke();
+  if(withArrow&&pts.length>=3){
+    ctx.fillStyle=color;
+    const fracs=pts.length>25?[0.3,0.68]:[0.45];
+    fracs.forEach(frac=>{
+      const idx=Math.max(1,Math.floor(pts.length*frac));
+      if(idx<pts.length)arrowhead(ctx,wx(pts[idx-1].x),wy(pts[idx-1].y),wx(pts[idx].x),wy(pts[idx].y),10);
+    });
+  }
+  ctx.restore();
+}
+function drawFadingTrail(pts,color,maxAlpha,lw){
+  if(!pts||pts.length<2)return;
+  fgCtx.strokeStyle=color;fgCtx.lineWidth=lw;fgCtx.lineCap='round';fgCtx.setLineDash([]);
+  const n=pts.length;
+  for(let i=1;i<n;i++){
+    fgCtx.globalAlpha=(i/n)*maxAlpha;
+    fgCtx.beginPath();fgCtx.moveTo(wx(pts[i-1].x),wy(pts[i-1].y));
+    fgCtx.lineTo(wx(pts[i].x),wy(pts[i].y));fgCtx.stroke();
+  }
+  fgCtx.globalAlpha=1;
+}
+
+// ══════════════════════════════════════════════════════════
+// BACKGROUND RENDER
+// ══════════════════════════════════════════════════════════
+function renderBg(){
+  if(!W||!H)return;
+  bgCtx.clearRect(0,0,W,H);bgCtx.fillStyle='#fff';bgCtx.fillRect(0,0,W,H);
+  const xMin=cw(0),xMax=cw(W),yMin=ch(H),yMax=ch(0);
+  const step=SC<22?5:SC<44?2:1;
+  const snap=v=>Math.ceil(v/step)*step;
+  // Grid
+  bgCtx.strokeStyle='#ece8e0';bgCtx.lineWidth=1;bgCtx.setLineDash([]);
+  for(let gx=snap(xMin);gx<=Math.floor(xMax/step)*step;gx+=step){
+    bgCtx.beginPath();bgCtx.moveTo(wx(gx),0);bgCtx.lineTo(wx(gx),H);bgCtx.stroke();}
+  for(let gy=snap(yMin);gy<=Math.floor(yMax/step)*step;gy+=step){
+    bgCtx.beginPath();bgCtx.moveTo(0,wy(gy));bgCtx.lineTo(W,wy(gy));bgCtx.stroke();}
+  // Axes
+  bgCtx.strokeStyle='#c0b8b0';bgCtx.lineWidth=1.5;bgCtx.setLineDash([]);
+  bgCtx.beginPath();bgCtx.moveTo(0,wy(0));bgCtx.lineTo(W,wy(0));bgCtx.stroke();
+  bgCtx.beginPath();bgCtx.moveTo(wx(0),0);bgCtx.lineTo(wx(0),H);bgCtx.stroke();
+  // Axis labels
+  if(SC>=22){
+    bgCtx.fillStyle='#b0a898';bgCtx.font='10px system-ui,sans-serif';
+    bgCtx.textAlign='center';bgCtx.textBaseline='top';
+    for(let gx=snap(xMin);gx<=Math.floor(xMax/step)*step;gx+=step){
+      if(gx===0)continue;bgCtx.fillText(gx,wx(gx),wy(0)+4);}
+    bgCtx.textAlign='right';bgCtx.textBaseline='middle';
+    for(let gy=snap(yMin);gy<=Math.floor(yMax/step)*step;gy+=step){
+      if(gy===0)continue;bgCtx.fillText(gy,wx(0)-5,wy(gy));}
+  }
+  // Direction field
+  if(tog.field){
+    const NG=14,xH=W/(2*SC),yH=H/(2*SC),HALF=7;
+    bgCtx.strokeStyle='#c8c0b8';bgCtx.fillStyle='#a8a098';bgCtx.lineWidth=1;bgCtx.setLineDash([]);
+    for(let i=0;i<NG;i++)for(let j=0;j<NG;j++){
+      const gx=-xH+(2*xH/NG)*(i+.5),gy=-yH+(2*yH/NG)*(j+.5);
+      const v=fv(gx,gy),mag=Math.hypot(v.x,v.y);if(mag<1e-10)continue;
+      const nx=v.x/mag,ny=-v.y/mag,tx=wx(gx),ty=wy(gy);
+      bgCtx.beginPath();bgCtx.moveTo(tx-HALF*nx,ty-HALF*ny);bgCtx.lineTo(tx+HALF*nx,ty+HALF*ny);bgCtx.stroke();
+      arrowhead(bgCtx,tx-HALF*nx,ty-HALF*ny,tx+HALF*nx,ty+HALF*ny,5);
+    }
+  }
+  // Nullclines
+  if(tog.nullclines){
+    const a=M[0][0],b=M[0][1],c=M[1][0],d=M[1][1];
+    const lx=Math.hypot(b,a);if(lx>1e-10)lineThrough(bgCtx,b/lx,-a/lx,'rgba(30,130,30,.68)',[7,4]);
+    const ly=Math.hypot(d,c);if(ly>1e-10)lineThrough(bgCtx,d/ly,-c/ly,'rgba(140,30,140,.62)',[7,4]);
+  }
+  // Eigenvector directions
+  if(tog.eigen){
+    const p=matProps();
+    if(p.evecs)p.evecs.forEach((ev,i)=>{
+      if(!ev)return;
+      const lam=p.lambda?p.lambda[i]:null;
+      const col=lam!==null&&lam<-1e-8?'rgba(50,90,210,.78)':lam!==null&&lam>1e-8?'rgba(210,60,20,.78)':'rgba(110,100,80,.62)';
+      lineThrough(bgCtx,ev.x,ev.y,col,[9,5]);
+    });
+  }
+  // Axis seed trajectories (both modes)
+  if(tog.axis&&axisBalls.length>0){
+    axisBalls.forEach(b=>{
+      drawPolyline(bgCtx,b.fwd,0.55,2.2,'#4466aa',true);
+      if(tog.bwd)drawPolyline(bgCtx,b.bwd,0.22,1.6,'#4466aa',false);
+    });
+    // Seed point dots
+    bgCtx.setLineDash([]);
+    axisBalls.forEach(b=>{
+      bgCtx.beginPath();bgCtx.arc(wx(b.seed.x),wy(b.seed.y),3.5,0,2*Math.PI);
+      bgCtx.fillStyle='#4466aa';bgCtx.globalAlpha=0.7;bgCtx.fill();bgCtx.globalAlpha=1;
+      bgCtx.strokeStyle='rgba(255,255,255,.8)';bgCtx.lineWidth=1;bgCtx.stroke();
+    });
+  }
+  // Trails mode: static user ball trajectories
+  if(mode==='trails'){
+    userBalls.forEach((ball,i)=>{
+      if(tog.bwd)drawPolyline(bgCtx,ball.bwd,0.28,2.5,'#1a2a4a',false);
+      drawPolyline(bgCtx,ball.fwd,0.85,3.5,'#1a2a4a',true);
+    });
+    // User ball seed point markers
+    bgCtx.setLineDash([]);
+    userBalls.forEach((ball,i)=>{
+      const active=(i===hoverBall||i===dragBall);
+      bgCtx.beginPath();bgCtx.arc(wx(ball.seed.x),wy(ball.seed.y),active?7.5:6,0,2*Math.PI);
+      bgCtx.fillStyle='#cc4000';bgCtx.fill();
+      bgCtx.strokeStyle='rgba(255,255,255,.85)';bgCtx.lineWidth=1.5;bgCtx.stroke();
+      if(active){
+        bgCtx.beginPath();bgCtx.arc(wx(ball.seed.x),wy(ball.seed.y),12,0,2*Math.PI);
+        bgCtx.strokeStyle='rgba(204,64,0,.22)';bgCtx.lineWidth=2;bgCtx.stroke();
+      }
+    });
+  }
+  // Origin marker
+  bgCtx.setLineDash([]);
+  bgCtx.beginPath();bgCtx.arc(wx(0),wy(0),4,0,2*Math.PI);
+  bgCtx.fillStyle='#1a1008';bgCtx.fill();
+  bgCtx.strokeStyle='#fff';bgCtx.lineWidth=1.5;bgCtx.stroke();
+}
+
+// ══════════════════════════════════════════════════════════
+// BACKGROUND SPARKS
+// ══════════════════════════════════════════════════════════
+function randomPos(){
+  const xH=W/(2*SC)*.9,yH=H/(2*SC)*.9,MIN_R=0.4;
+  let x,y;
+  do{x=(Math.random()*2-1)*xH;y=(Math.random()*2-1)*yH;}
+  while(x*x+y*y<MIN_R*MIN_R);
+  return{x,y};
+}
+function mkBgP(){const p=randomPos();return{x:p.x,y:p.y,trail:[],age:Math.floor(Math.random()*BG_MAX_AGE),stuckFrames:0};}
+function stepBgP(p){
+  if(speedFactor===0)return;
+  const effectiveDT=DT*speedFactor*ANIM_SCALE;
+  const vel=fv(p.x,p.y);
+  if(Math.hypot(vel.x,vel.y)<0.012){p.stuckFrames=(p.stuckFrames||0)+1;} else{p.stuckFrames=0;}
+  p.trail.push({x:p.x,y:p.y});
+  if(p.trail.length>BG_TRAIL)p.trail.shift();
+  const n=rk4(p.x,p.y,effectiveDT);
+  if(p.stuckFrames>45||!isFinite(n.x)||!isFinite(n.y)||n.x*n.x+n.y*n.y>ESCAPE_R*ESCAPE_R||++p.age>=BG_MAX_AGE){
+    const q=randomPos();p.x=q.x;p.y=q.y;p.trail=[];p.age=0;p.stuckFrames=0;
+  }else{p.x=n.x;p.y=n.y;}
+}
+function initBgParticles(){bgParticles=Array.from({length:BG_N},mkBgP);}
+
+// ══════════════════════════════════════════════════════════
+// ANIMATED BALL STEP (user balls and axis balls share this)
+// ══════════════════════════════════════════════════════════
+function stepAnimBall(ball){
+  if(speedFactor===0)return;
+  const effectiveDT=DT*speedFactor*ANIM_SCALE;
+  const vel=fv(ball.ax,ball.ay);
+  if(Math.hypot(vel.x,vel.y)<0.012){ball.stuckFrames=(ball.stuckFrames||0)+1;} else{ball.stuckFrames=0;}
+  ball.aTrail.push({x:ball.ax,y:ball.ay});
+  if(ball.aTrail.length>USER_TRAIL)ball.aTrail.shift();
+  const n=rk4(ball.ax,ball.ay,effectiveDT);
+  ball.aAge+=Math.abs(speedFactor);
+  if(ball.stuckFrames>80||!isFinite(n.x)||!isFinite(n.y)||n.x*n.x+n.y*n.y>ESCAPE_R*ESCAPE_R||ball.aAge>=USER_MAX_AGE){
+    ball.ax=ball.seed.x;ball.ay=ball.seed.y;ball.aTrail=[];ball.aAge=0;ball.stuckFrames=0;
+  }else{ball.ax=n.x;ball.ay=n.y;}
+}
+
+// ══════════════════════════════════════════════════════════
+// USER BALLS
+// ══════════════════════════════════════════════════════════
+function createBall(x,y){
+  const t=integrate(x,y);
+  return{seed:{x,y},fwd:t.fwd,bwd:t.bwd,ax:x,ay:y,aTrail:[],aAge:0,stuckFrames:0};
+}
+function recomputeBallTrail(i){
+  const t=integrate(userBalls[i].seed.x,userBalls[i].seed.y);
+  userBalls[i].fwd=t.fwd;userBalls[i].bwd=t.bwd;
+}
+function findNearestBall(mx,my){
+  const SNAP=15/SC;let best=-1,bd=SNAP;
+  userBalls.forEach((b,i)=>{
+    let d=Math.hypot(mx-b.seed.x,my-b.seed.y);if(d<bd){bd=d;best=i;}
+    if(mode==='animated'){d=Math.hypot(mx-b.ax,my-b.ay);if(d<bd){bd=d;best=i;}}
+  });
+  return best;
+}
+
+// ══════════════════════════════════════════════════════════
+// AXIS SEED BALLS
+// ══════════════════════════════════════════════════════════
+function initAxisBalls(){
+  const seeds=[{x:axisK,y:0},{x:-axisK,y:0},{x:0,y:axisK},{x:0,y:-axisK}];
+  axisBalls=seeds.map(s=>{
+    const t=integrate(s.x,s.y);
+    return{seed:{x:s.x,y:s.y},fwd:t.fwd,bwd:t.bwd,ax:s.x,ay:s.y,aTrail:[],aAge:0,stuckFrames:0};
+  });
+}
+function recomputeAxisBalls(){
+  initAxisBalls();
+}
+
+// ══════════════════════════════════════════════════════════
+// FOREGROUND RENDER
+// ══════════════════════════════════════════════════════════
+function renderFgAnimated(){
+  fgCtx.clearRect(0,0,W,H);
+  // Faint forward trajectory overlay for user balls
+  userBalls.forEach(ball=>{
+    const overlay=speedFactor>=0?ball.fwd:ball.bwd;
+    drawPolyline(fgCtx,overlay,0.18,1.2,'#cc4000',false);
+  });
+  // Background sparks
+  bgParticles.forEach(p=>{
+    drawFadingTrail(p.trail,'#1a2855',.46,1.5);
+    if(p.trail.length>0){
+      fgCtx.beginPath();fgCtx.arc(wx(p.x),wy(p.y),2.5,0,2*Math.PI);
+      fgCtx.fillStyle='#1a2855';fgCtx.globalAlpha=.46;fgCtx.fill();fgCtx.globalAlpha=1;
+    }
+  });
+  // Axis ball animated dots
+  if(tog.axis){
+    axisBalls.forEach(b=>{
+      drawFadingTrail(b.aTrail,'#4466aa',.5,1.5);
+      fgCtx.beginPath();fgCtx.arc(wx(b.ax),wy(b.ay),4.5,0,2*Math.PI);
+      fgCtx.fillStyle='#4466aa';fgCtx.globalAlpha=0.85;fgCtx.fill();
+      fgCtx.strokeStyle='rgba(255,255,255,.7)';fgCtx.lineWidth=1.2;fgCtx.stroke();
+      fgCtx.globalAlpha=1;
+    });
+  }
+  // User ball animated tracers
+  userBalls.forEach(ball=>{
+    // Seed dot — same clean solid style as trails mode
+    fgCtx.beginPath();fgCtx.arc(wx(ball.seed.x),wy(ball.seed.y),6,0,2*Math.PI);
+    fgCtx.fillStyle='#cc4000';fgCtx.fill();
+    fgCtx.strokeStyle='rgba(255,255,255,.85)';fgCtx.lineWidth=1.5;fgCtx.stroke();
+    // Trail + animated head (smaller dot to distinguish from seed)
+    drawFadingTrail(ball.aTrail,'#cc4000',.9,3.0);
+    fgCtx.beginPath();fgCtx.arc(wx(ball.ax),wy(ball.ay),4.5,0,2*Math.PI);
+    fgCtx.fillStyle='#cc4000';fgCtx.globalAlpha=0.75;fgCtx.fill();
+    fgCtx.strokeStyle='rgba(255,255,255,.7)';fgCtx.lineWidth=1.2;fgCtx.stroke();
+    fgCtx.globalAlpha=1;
+  });
+}
+
+function renderFg(){
+  if(mode==='animated')renderFgAnimated();
+  // trails mode: all drawing is in bgCtx (renderBg handles user balls + axis balls)
+  else fgCtx.clearRect(0,0,W,H);
+}
+
+// ══════════════════════════════════════════════════════════
+// ANIMATION LOOP
+// ══════════════════════════════════════════════════════════
+function animStep(){
+  bgParticles.forEach(stepBgP);
+  userBalls.forEach(stepAnimBall);
+  if(tog.axis)axisBalls.forEach(stepAnimBall);
+  renderFgAnimated();
+  animID=requestAnimationFrame(animStep);
+}
+function startAnim(){if(!animID)animID=requestAnimationFrame(animStep);}
+function stopAnim(){if(animID){cancelAnimationFrame(animID);animID=null;}}
+
+// ══════════════════════════════════════════════════════════
+// TD PANEL
+// ══════════════════════════════════════════════════════════
+function drawTDPanel(){
+  const tdCvs=document.getElementById('td-cvs');
+  const tdc=tdCvs.getContext('2d');
+  const TW=tdCvs.width,TH=tdCvs.height;
+  const tdX=tau=>(tau-TAU_MIN)/(TAU_MAX-TAU_MIN)*TW;
+  const tdY=del=>(DEL_MAX-del)/(DEL_MAX-DEL_MIN)*TH;
+  const img=tdc.createImageData(TW,TH);
+  for(let px=0;px<TW;px++){
+    const tau=TAU_MIN+(px/TW)*(TAU_MAX-TAU_MIN);
+    for(let py=0;py<TH;py++){
+      const del=DEL_MAX-(py/TH)*(DEL_MAX-DEL_MIN),disc=tau*tau-4*del;
+      let r,g,b;
+      if(del<0){r=252;g=218;b=212;}
+      else if(disc>0){r=tau<=0?208:252;g=226;b=tau<=0?252:208;}
+      else{r=Math.abs(tau)<.3?208:tau<0?172:248;g=Math.abs(tau)<.3?240:202;b=Math.abs(tau)<.3?216:tau<0?248:172;}
+      const k=(py*TW+px)*4;img.data[k]=r;img.data[k+1]=g;img.data[k+2]=b;img.data[k+3]=255;
+    }
+  }
+  tdc.putImageData(img,0,0);
+  tdc.save();
+  // Parabola (boundary: repeated eigenvalue)
+  tdc.strokeStyle='#555';tdc.lineWidth=1.5;tdc.setLineDash([]);tdc.beginPath();
+  let go=false;
+  for(let px=0;px<=TW;px++){
+    const tau=TAU_MIN+(px/TW)*(TAU_MAX-TAU_MIN),del=tau*tau/4;
+    if(del<DEL_MIN||del>DEL_MAX){go=false;continue;}
+    if(!go){tdc.moveTo(px,tdY(del));go=true;}else tdc.lineTo(px,tdY(del));
+  }
+  tdc.stroke();
+  tdc.strokeStyle='#999';tdc.lineWidth=1;
+  tdc.beginPath();tdc.moveTo(0,tdY(0));tdc.lineTo(TW,tdY(0));tdc.stroke();
+  tdc.beginPath();tdc.moveTo(tdX(0),0);tdc.lineTo(tdX(0),TH);tdc.stroke();
+  tdc.fillStyle='#777';tdc.font='9px system-ui,sans-serif';
+  tdc.textAlign='right';tdc.textBaseline='top';tdc.fillText('τ',TW-2,tdY(0)+2);
+  tdc.textAlign='left';tdc.fillText('δ',tdX(0)+2,2);
+  tdc.font='8px system-ui,sans-serif';tdc.textAlign='center';tdc.textBaseline='middle';
+  tdc.fillStyle='rgba(0,0,0,.38)';
+  tdc.fillText('Saddle',tdX(0),tdY(-1.2));tdc.fillText('Node',tdX(-3.3),tdY(.85));
+  tdc.fillText('Node',tdX(3.3),tdY(.85));tdc.fillText('Spiral',tdX(-2.2),tdY(4.5));
+  tdc.fillText('Spiral',tdX(2.2),tdY(4.5));tdc.fillText('Centre',tdX(0),tdY(3.0));
+  const tau_c=M[0][0]+M[1][1],del_c=M[0][0]*M[1][1]-M[0][1]*M[1][0];
+  const inRange=tau_c>TAU_MIN&&tau_c<TAU_MAX&&del_c>DEL_MIN&&del_c<DEL_MAX;
+  const dotX=tdX(Math.max(TAU_MIN+.2,Math.min(TAU_MAX-.2,tau_c)));
+  const dotY=tdY(Math.max(DEL_MIN+.1,Math.min(DEL_MAX-.1,del_c)));
+  tdc.strokeStyle='rgba(190,40,15,.28)';tdc.lineWidth=1;tdc.setLineDash([3,3]);
+  tdc.beginPath();tdc.moveTo(dotX,0);tdc.lineTo(dotX,TH);tdc.stroke();
+  tdc.beginPath();tdc.moveTo(0,dotY);tdc.lineTo(TW,dotY);tdc.stroke();
+  tdc.setLineDash([]);
+  tdc.beginPath();tdc.arc(dotX,dotY,inRange?4.5:3.5,0,2*Math.PI);
+  tdc.fillStyle='#cc3311';tdc.fill();tdc.strokeStyle='#fff';tdc.lineWidth=1.5;tdc.stroke();
+  tdc.restore();
+}
+
+// ══════════════════════════════════════════════════════════
+// ANALYSIS PANEL
+// ══════════════════════════════════════════════════════════
+const TYPE_LABEL={
+  stable_spiral:'<span class="stable">Stable spiral</span>',
+  unstable_spiral:'<span class="unstable">Unstable spiral</span>',
+  centre:'<span class="neutral">Centre</span>',
+  saddle:'<span class="saddle">Saddle</span>',
+  stable_node:'<span class="stable">Stable node</span>',
+  unstable_node:'<span class="unstable">Unstable node</span>',
+  stable_star:'<span class="stable">Stable star node</span>',
+  unstable_star:'<span class="unstable">Unstable star node</span>',
+  stable_improper:'<span class="stable">Stable improper node</span>',
+  unstable_improper:'<span class="unstable">Unstable improper node</span>',
+  degenerate:'<span class="degen">Degenerate</span>',
+  zero_matrix:'<span class="degen">Zero matrix</span>',
+};
+function f2(x){return Math.abs(x)<5e-7?'0':x.toFixed(2);}
+function fmt(x){return Math.abs(x)<5e-7?'0':x.toFixed(3);}
+
+// Behaviour text only — no eigenvalue description sentence
+function buildBehaviourText(p){
+  switch(p.type){
+    case 'stable_spiral':{const{alpha,beta}=p;
+      return `Every trajectory spirals inward to the origin, shrinking as e<sup>${f2(alpha)}t</sup> while rotating at frequency ${f2(beta)}.`;}
+    case 'unstable_spiral':{const{alpha,beta}=p;
+      return `Every trajectory spirals outward from the origin, growing as e<sup>${f2(alpha)}t</sup> while rotating at frequency ${f2(beta)}.`;}
+    case 'centre':
+      return `Every trajectory is a <b>closed ellipse</b> — neither growing nor decaying. Any perturbation that makes the trace non-zero converts every closed orbit into a spiral.`;
+    case 'saddle':
+      return `Trajectories converge along the <b style="color:#3c5ac8">blue eigenvector direction</b> and diverge along the <b style="color:#c84020">red</b>. Only starting points on the blue line converge to the origin.`;
+    case 'stable_node':
+      return `Every trajectory converges to the origin without oscillation. Most paths arrive tangent to the slower eigenvector direction.`;
+    case 'unstable_node':
+      return `Every trajectory diverges from the origin. Paths gradually straighten to align with the slower eigenvector direction.`;
+    case 'stable_improper':
+      return `Trajectories converge to the origin, gradually aligning with the single eigenvector direction. This case sits at the boundary between a node and a spiral.`;
+    case 'unstable_improper':
+      return `Trajectories diverge from the origin, gradually aligning with the single eigenvector direction. This case sits at the boundary between a node and a spiral.`;
+    case 'stable_star':
+      return `Trajectories flow radially inward in <b>straight lines</b>, at the same rate in every direction.`;
+    case 'unstable_star':
+      return `Trajectories flow radially outward in <b>straight lines</b>, at the same rate in every direction.`;
+    case 'degenerate':
+      return `Every point on the null space of M is a fixed point — a whole <b>line of equilibria</b> through the origin. All other trajectories are parallel straight lines approaching it.`;
+    default:return '';
+  }
+}
+
+function drawArgandDiagram(){
+  const canvas=document.getElementById('argand-cvs');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const CW=canvas.width, CH=canvas.height;
+  ctx.clearRect(0,0,CW,CH);
+  ctx.fillStyle='#faf8f4';ctx.fillRect(0,0,CW,CH);
+  const p=matProps();
+  const PAD=22;
+  // Collect eigenvalue points with colours
+  let pts=[];
+  if(p.evals==='complex'){
+    const col=p.alpha<-1e-6?'#2255bb':p.alpha>1e-6?'#bb3311':'#2a8840';
+    pts=[{re:p.alpha,im:p.beta,col},{re:p.alpha,im:-p.beta,col}];
+  }else if(p.evals==='repeated'){
+    const l=p.lambda[0];
+    const col=l<-1e-6?'#2255bb':l>1e-6?'#bb3311':'#888870';
+    pts=[{re:l,im:0,col}];
+  }else{
+    p.lambda.forEach(l=>{
+      const col=l<-1e-6?'#2255bb':l>1e-6?'#bb3311':'#888870';
+      pts.push({re:l,im:0,col});
+    });
+  }
+  // Auto-scale: find range, minimum ±1.5
+  const vals=pts.flatMap(q=>[Math.abs(q.re),Math.abs(q.im)]);
+  const maxV=Math.max(1.5,...vals)*1.35;
+  const toX=re=>CW/2+(re/maxV)*(CW/2-PAD);
+  const toY=im=>CH/2-(im/maxV)*(CH/2-PAD);
+  // Light grid
+  ctx.strokeStyle='#e8e4dc';ctx.lineWidth=1;ctx.setLineDash([]);
+  const step=maxV<=3?1:maxV<=7?2:5;
+  for(let v=step;v<maxV;v+=step){
+    [v,-v].forEach(gv=>{
+      ctx.beginPath();ctx.moveTo(toX(gv),PAD/2);ctx.lineTo(toX(gv),CH-PAD/2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(PAD/2,toY(gv));ctx.lineTo(CW-PAD/2,toY(gv));ctx.stroke();
+    });
+  }
+  // Axes
+  ctx.strokeStyle='#b8b0a8';ctx.lineWidth=1.5;ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(PAD/2,CH/2);ctx.lineTo(CW-PAD/2,CH/2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(CW/2,PAD/2);ctx.lineTo(CW/2,CH-PAD/2);ctx.stroke();
+  // Axis labels
+  ctx.fillStyle='#a09070';ctx.font='9px system-ui,sans-serif';
+  ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText('Re',CW-3,CH/2+3);
+  ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('Im',CW/2+3,3);
+  // Origin
+  ctx.beginPath();ctx.arc(CW/2,CH/2,2.5,0,2*Math.PI);
+  ctx.fillStyle='#b8b0a8';ctx.fill();
+  // Eigenvalue dots
+  pts.forEach(q=>{
+    ctx.beginPath();ctx.arc(toX(q.re),toY(q.im),5.5,0,2*Math.PI);
+    ctx.fillStyle=q.col;ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=1.5;ctx.stroke();
+  });
+  // Tooltip showing eigenvalue values
+  let tipText='Eigenvalues: ';
+  if(p.evals==='complex'){
+    tipText+=`${fmt(p.alpha)} ± ${fmt(p.beta)}i`;
+  }else if(p.evals==='repeated'){
+    tipText+=`${fmt(p.lambda[0])} (repeated)`;
+  }else{
+    tipText+=p.lambda.map(fmt).join(', ');
+  }
+  canvas.title=tipText;
+}
+
+function updateInfo(){
+  const p=matProps();
+  drawArgandDiagram();
+  document.getElementById('analysis-type').innerHTML=TYPE_LABEL[p.type]??p.type;
+  document.getElementById('analysis-text').innerHTML=buildBehaviourText(p);
+}
+
+// ══════════════════════════════════════════════════════════
+// EQUATION SIDEBAR (MathJax)
+// ══════════════════════════════════════════════════════════
+function typesetMath(el){
+  if(window.MathJax?.typesetPromise){
+    MathJax.typesetClear([el]);
+    MathJax.typesetPromise([el]).catch(console.error);
+  }
+}
+function eqTerm(c,varName,isFirst){
+  if(Math.abs(c)<5e-7)return'';
+  const mag=Math.abs(c);
+  const magStr=Math.abs(mag-1)<1e-6&&varName?'':mag.toFixed(2);
+  const sign=isFirst?(c<0?'-':''):(c>0?' + ':' - ');
+  return`${sign}${magStr}${varName}`;
+}
+function buildEqSystemTeX(){
+  const a=M[0][0],b=M[0][1],c=M[1][0],d=M[1][1];
+  const rhs1=(eqTerm(a,'x',true)+eqTerm(b,'y',!eqTerm(a,'x',true)))||'0';
+  const rhs2=(eqTerm(c,'x',true)+eqTerm(d,'y',!eqTerm(c,'x',true)))||'0';
+  return`\\[\\begin{aligned}\\dfrac{dx}{dt}&=${rhs1}\\\\[8pt]\\dfrac{dy}{dt}&=${rhs2}\\end{aligned}\\]`;
+}
+function updateEquations(){
+  const el=document.getElementById('eq-system');
+  el.innerHTML=buildEqSystemTeX();
+  typesetMath(el);
+}
+
+// ══════════════════════════════════════════════════════════
+// HOVER TOOLTIP — exact solution
+// ══════════════════════════════════════════════════════════
+function texTerms(pairs){
+  const nz=pairs.filter(([c])=>Math.abs(c)>=5e-7);
+  if(!nz.length)return'0';
+  return nz.map(([c,e],i)=>{
+    const mag=Math.abs(c).toFixed(2);
+    const part=e?`${mag}\\,${e}`:mag;
+    return i===0?(c<0?`-${part}`:part):(c<0?` - ${part}`:` + ${part}`);
+  }).join('');
+}
+function texLambda(l){return Math.abs(l)<5e-7?'':(`e^{${l.toFixed(2)}t}`);}
+
+function buildExactSolTeX(x0,y0){
+  const sol=exactSolution(x0,y0);
+  if(!sol)return null;
+  let xLine,yLine;
+  switch(sol.type){
+    case 'star':{const e=texLambda(sol.lambda)||'1';xLine=`${sol.x0.toFixed(2)}\\,${e}`;yLine=`${sol.y0.toFixed(2)}\\,${e}`;break;}
+    case 'real':{
+      const e1=texLambda(sol.l1)||'1',e2=texLambda(sol.l2)||'1';
+      xLine=texTerms([[sol.Ax,e1],[sol.Bx,e2]]);yLine=texTerms([[sol.Ay,e1],[sol.By,e2]]);break;}
+    case 'complex':{
+      const{alpha,beta,Ax,Bx,Ay,By}=sol;
+      const cosE=`\\cos(${beta.toFixed(2)}t)`,sinE=`\\sin(${beta.toFixed(2)}t)`,eE=texLambda(alpha);
+      const xi=texTerms([[Ax,cosE],[Bx,sinE]]),yi=texTerms([[Ay,cosE],[By,sinE]]);
+      xLine=eE?`${eE}(${xi})`:xi;yLine=eE?`${eE}(${yi})`:yi;break;}
+    case 'improper':{
+      const{lambda,Px,Qx,Py,Qy}=sol,e=texLambda(lambda)||'1';
+      xLine=`${e}(${texTerms([[Px,''],[Qx,'t']])})`;yLine=`${e}(${texTerms([[Py,''],[Qy,'t']])})`;break;}
+    default:return null;
+  }
+  return`\\[\\begin{aligned}x(t)&=${xLine}\\\\[4pt]y(t)&=${yLine}\\end{aligned}\\]`;
+}
+
+function tipBehavText(p,sol){
+  switch(p.type){
+    case 'stable_spiral':   return'Spirals inward to the origin';
+    case 'unstable_spiral': return'Spirals outward from the origin';
+    case 'centre':          return'Follows a closed elliptical orbit';
+    case 'stable_node': case 'stable_star': case 'stable_improper':
+                            return'Converges to the origin';
+    case 'unstable_node': case 'unstable_star': case 'unstable_improper':
+                            return'Diverges away from the origin';
+    case 'saddle':{
+      if(sol&&sol.type==='real'){
+        const unstIdx=p.lambda[0]>0?0:1;
+        const A=unstIdx===0?sol.Ax:sol.Bx,C=unstIdx===0?sol.Ay:sol.By;
+        if(Math.hypot(A,C)<0.02)return'On the stable manifold — converges to the origin';
+      }
+      return'Escapes to infinity';
+    }
+    case 'degenerate':return'Moves toward the nearest equilibrium on the fixed line';
+    default:return'';
+  }
+}
+
+function showBallTooltip(ballIdx){
+  if(dragBall>=0)return;
+  const ball=userBalls[ballIdx];
+  const tip=document.getElementById('sol-tooltip');
+  const box=document.getElementById('cvs-box');
+  const wrap=document.getElementById('cvs-wrap');
+  const boxRect=box.getBoundingClientRect();
+  const wrapRect=wrap.getBoundingClientRect();
+  const scX=boxRect.width/W,scY=boxRect.height/H;
+  const cssX=(boxRect.left-wrapRect.left)+wx(ball.seed.x)*scX;
+  const cssY=(boxRect.top-wrapRect.top)+wy(ball.seed.y)*scY;
+  tip.querySelector('.tip-seed').textContent=`x₀ = (${ball.seed.x.toFixed(2)},  ${ball.seed.y.toFixed(2)})`;
+  const mathDiv=tip.querySelector('.tip-math');
+  const solTex=buildExactSolTeX(ball.seed.x,ball.seed.y);
+  mathDiv.innerHTML=solTex||'<em style="color:#a09070">Solution unavailable</em>';
+  const p=matProps(),sol=exactSolution(ball.seed.x,ball.seed.y);
+  tip.querySelector('.tip-behav').textContent=tipBehavText(p,sol);
+  tip.style.display='block';
+  const TW=tip.offsetWidth||300,TH=tip.offsetHeight||150;
+  const WW=wrapRect.width,WH=wrapRect.height,PAD=18;
+  let left=cssX+PAD,top=cssY-TH/2;
+  if(left+TW+4>WW)left=cssX-TW-PAD;
+  left=Math.max(4,Math.min(WW-TW-4,left));
+  top=Math.max(4,Math.min(WH-TH-4,top));
+  tip.style.left=left+'px';tip.style.top=top+'px';
+  typesetMath(mathDiv);
+}
+function hideBallTooltip(){document.getElementById('sol-tooltip').style.display='none';}
+
+// ══════════════════════════════════════════════════════════
+// INPUT SYNC
+// ══════════════════════════════════════════════════════════
+function updateSRhoSliders(){
+  const{s,rho}=getSRho();
+  document.getElementById('sl-s').value=Math.max(-3,Math.min(3,s));
+  document.getElementById('sl-rho').value=Math.max(-3,Math.min(3,rho));
+  document.getElementById('sl-s-val').textContent=s.toFixed(2);
+  document.getElementById('sl-rho-val').textContent=rho.toFixed(2);
+}
+function syncMatrixInputs(){
+  document.getElementById('m00').value=M[0][0];document.getElementById('m01').value=M[0][1];
+  document.getElementById('m10').value=M[1][0];document.getElementById('m11').value=M[1][1];
+}
+function syncCDEInputs(){
+  document.getElementById('cde-a').value=M[0][0];document.getElementById('cde-b').value=M[0][1];
+  document.getElementById('cde-c').value=M[1][0];document.getElementById('cde-d').value=M[1][1];
+}
+function setAllInputs(){syncMatrixInputs();syncCDEInputs();updateSRhoSliders();}
+function readMatrixInputs(){
+  const v=id=>{const n=parseFloat(document.getElementById(id).value);return isNaN(n)?0:n;};
+  M=[[v('m00'),v('m01')],[v('m10'),v('m11')]];
+}
+function readCDEInputs(){
+  const v=id=>{const n=parseFloat(document.getElementById(id).value);return isNaN(n)?0:n;};
+  M=[[v('cde-a'),v('cde-b')],[v('cde-c'),v('cde-d')]];
+}
+
+// ══════════════════════════════════════════════════════════
+// MATRIX CHANGE HANDLER
+// ══════════════════════════════════════════════════════════
+function onMatrixChange(){
+  recomputeAxisBalls();
+  userBalls.forEach((_,i)=>recomputeBallTrail(i));
+  renderBg();
+  if(mode==='animated'){
+    bgParticles.forEach(p=>{p.trail=[];});
+    userBalls.forEach(b=>{b.aTrail=[];b.ax=b.seed.x;b.ay=b.seed.y;b.aAge=0;b.stuckFrames=0;});
+    axisBalls.forEach(b=>{b.aTrail=[];b.ax=b.seed.x;b.ay=b.seed.y;b.aAge=0;b.stuckFrames=0;});
+  }else{
+    renderFg(); // redraws trails
+  }
+  updateSRhoSliders();drawTDPanel();updateInfo();tooltipBall=-1;hideBallTooltip();
+}
+
+// ══════════════════════════════════════════════════════════
+// MODE
+// ══════════════════════════════════════════════════════════
+function updateHelp(){
+  const el=document.getElementById('help-text');
+  if(mode==='animated'){
+    el.innerHTML=`Click anywhere to add a <b style="color:#cc4000">starting point</b>. Click it again to see its exact solution. <b>Shift-click</b> to remove it.`;
+  }else{
+    el.innerHTML=`Click to place a <b style="color:#cc4000">starting point</b> and draw its trajectory. Drag to move it; <b>shift-click</b> to remove it.`;
+  }
+}
+
+let tooltipBall=-1;
+
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  document.getElementById('row-bwd').style.display=m==='trails'?'':'none';
+  document.getElementById('speed-row').style.display=m==='trails'?'none':'';
+  hideBallTooltip();tooltipBall=-1;
+  updateHelp();
+  if(m==='trails'){
+    stopAnim();renderBg();renderFg();
+  }else{
+    initBgParticles();
+    userBalls.forEach(b=>{b.ax=b.seed.x;b.ay=b.seed.y;b.aTrail=[];b.aAge=0;b.stuckFrames=0;});
+    axisBalls.forEach(b=>{b.ax=b.seed.x;b.ay=b.seed.y;b.aTrail=[];b.aAge=0;b.stuckFrames=0;});
+    renderBg();
+    startAnim();
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// POINTER EVENTS — canvas
+// ══════════════════════════════════════════════════════════
+function pointerMath(e){
+  const r=fgCvs.getBoundingClientRect();
+  return{mx:cw((e.clientX-r.left)*W/r.width),my:ch((e.clientY-r.top)*H/r.height)};
+}
+fgCvs.addEventListener('pointerdown',e=>{
+  const{mx,my}=pointerMath(e);
+  const idx=findNearestBall(mx,my);
+  // Shift-click: remove ball immediately, no drag
+  if(e.shiftKey&&idx>=0){
+    userBalls.splice(idx,1);
+    if(tooltipBall===idx)tooltipBall=-1;
+    else if(tooltipBall>idx)tooltipBall--;
+    hideBallTooltip();hoverBall=-1;
+    if(mode==='trails')renderBg();
+    return;
+  }
+  fgCvs.setPointerCapture(e.pointerId);
+  if(idx>=0){dragBall=idx;dragHasMoved=false;ballWasNew=false;}
+  else{
+    userBalls.push(createBall(mx,my));
+    dragBall=userBalls.length-1;dragHasMoved=false;ballWasNew=true;
+    if(mode==='trails')renderBg();
+  }
+});
+fgCvs.addEventListener('pointermove',e=>{
+  const{mx,my}=pointerMath(e);
+  if(dragBall>=0){
+    dragHasMoved=true;
+    const ball=userBalls[dragBall];ball.seed={x:mx,y:my};
+    const t=integrate(mx,my);ball.fwd=t.fwd;ball.bwd=t.bwd;
+    if(mode==='animated'){ball.ax=mx;ball.ay=my;ball.aTrail=[];ball.aAge=0;ball.stuckFrames=0;}
+    else renderBg();
+    fgCvs.style.cursor='grabbing';
+  }else{
+    const idx=findNearestBall(mx,my);
+    if(idx!==hoverBall){hoverBall=idx;if(mode==='trails')renderBg();}
+    fgCvs.style.cursor=idx>=0?'grab':'crosshair';
+  }
+});
+fgCvs.addEventListener('pointerup',e=>{
+  if(dragBall<0)return;
+  fgCvs.releasePointerCapture(e.pointerId);
+  if(!dragHasMoved&&!ballWasNew){
+    // Click on existing ball: toggle tooltip
+    if(tooltipBall===dragBall){
+      tooltipBall=-1;hideBallTooltip();
+    }else{
+      tooltipBall=dragBall;showBallTooltip(dragBall);
+    }
+  }else if(dragHasMoved){
+    // Finished drag: update tooltip if this ball had it shown
+    if(tooltipBall===dragBall)showBallTooltip(dragBall);
+  }
+  dragBall=-1;ballWasNew=false;fgCvs.style.cursor='crosshair';
+});
+fgCvs.addEventListener('pointerleave',()=>{hoverBall=-1;if(mode==='trails')renderBg();});
+
+// ══════════════════════════════════════════════════════════
+// POINTER EVENTS — TD plane
+// ══════════════════════════════════════════════════════════
+function tdPointerToMatrix(e){
+  const tdCvs=document.getElementById('td-cvs');
+  const r=tdCvs.getBoundingClientRect();
+  const px=(e.clientX-r.left)*tdCvs.width/r.width;
+  const py=(e.clientY-r.top)*tdCvs.height/r.height;
+  let tau=Math.max(TAU_MIN,Math.min(TAU_MAX,TAU_MIN+(px/tdCvs.width)*(TAU_MAX-TAU_MIN)));
+  const del=Math.max(DEL_MIN,Math.min(DEL_MAX,DEL_MAX-(py/tdCvs.height)*(DEL_MAX-DEL_MIN)));
+  if(Math.abs(tau)<0.22)tau=0;
+  const{s,rho}=getSRho();
+  M=matFromTauDeltaSRho(tau,del,s,rho);
+  setAllInputs();document.getElementById('presets').value='';onMatrixChange();
+}
+const tdCvs=document.getElementById('td-cvs');
+tdCvs.addEventListener('pointerdown',e=>{tdDragging=true;tdCvs.setPointerCapture(e.pointerId);tdPointerToMatrix(e);});
+tdCvs.addEventListener('pointermove',e=>{if(tdDragging)tdPointerToMatrix(e);});
+tdCvs.addEventListener('pointerup',()=>{tdDragging=false;});
+
+// ══════════════════════════════════════════════════════════
+// STANDARD EVENT WIRING
+// ══════════════════════════════════════════════════════════
+// Input view toggle
+document.querySelectorAll('.imode-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    inputMode=btn.dataset.imode;
+    document.querySelectorAll('.imode-btn').forEach(b=>b.classList.toggle('active',b===btn));
+    document.getElementById('iview-matrix').style.display=inputMode==='matrix'?'':'none';
+    document.getElementById('iview-eqs').style.display=inputMode==='equations'?'':'none';
+  });
+});
+// Matrix inputs
+['m00','m01','m10','m11'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>{
+    document.getElementById('presets').value='';
+    readMatrixInputs();syncCDEInputs();onMatrixChange();
+  });
+});
+// CDE inputs
+['cde-a','cde-b','cde-c','cde-d'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>{
+    document.getElementById('presets').value='';
+    readCDEInputs();syncMatrixInputs();updateSRhoSliders();onMatrixChange();
+  });
+});
+// Presets — does NOT clear user balls
+PRESETS.forEach((p,i)=>{
+  const opt=document.createElement('option');opt.value=i;opt.textContent=p.name;
+  document.getElementById('presets').appendChild(opt);
+});
+document.getElementById('presets').addEventListener('change',e=>{
+  if(!e.target.value)return;
+  M=PRESETS[+e.target.value].M.map(r=>[...r]);
+  setAllInputs();onMatrixChange();
+});
+// s/ρ sliders
+['sl-s','sl-rho'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>{
+    const s=parseFloat(document.getElementById('sl-s').value);
+    const rho=parseFloat(document.getElementById('sl-rho').value);
+    const tau=M[0][0]+M[1][1],delta=M[0][0]*M[1][1]-M[0][1]*M[1][0];
+    M=matFromTauDeltaSRho(tau,delta,s,rho);
+    setAllInputs();document.getElementById('presets').value='';onMatrixChange();
+  });
+});
+// Mode buttons
+document.querySelectorAll('.mode-btn').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+// Speed slider
+document.getElementById('sl-speed').addEventListener('input',e=>{
+  speedFactor=parseFloat(e.target.value);
+  const val=speedFactor===0?'Paused':`${speedFactor}×`;
+  document.getElementById('sl-speed-val').textContent=val;
+});
+// Zoom
+function applyZoom(f){SC=Math.max(SC_MIN,Math.min(SC_MAX,SC*f));renderBg();if(mode==='trails')renderFg();}
+document.getElementById('zoom-in' ).addEventListener('click',()=>applyZoom(1.25));
+document.getElementById('zoom-out').addEventListener('click',()=>applyZoom(1/1.25));
+fgCvs.addEventListener('wheel',e=>{e.preventDefault();applyZoom(e.deltaY<0?1.15:1/1.15);},{passive:false});
+// Display toggles
+[['t-field','field'],['t-eigen','eigen'],['t-null','nullclines']].forEach(([id,key])=>{
+  document.getElementById(id).addEventListener('change',e=>{
+    tog[key]=e.target.checked;renderBg();if(mode==='trails')renderFg();
+  });
+});
+document.getElementById('t-bwd').addEventListener('change',e=>{
+  tog.bwd=e.target.checked;renderBg();if(mode==='trails')renderFg();
+});
+document.getElementById('t-axis').addEventListener('change',e=>{
+  tog.axis=e.target.checked;
+  document.getElementById('axis-opts').style.display=tog.axis?'block':'none';
+  renderBg();
+});
+// Clear button
+document.getElementById('clear-btn').addEventListener('click',()=>{
+  userBalls=[];tooltipBall=-1;hideBallTooltip();renderBg();
+});
+// Resize observer
+new ResizeObserver(()=>{updateCanvasSize();renderBg();if(mode==='trails')renderFg();})
+  .observe(document.getElementById('cvs-box'));
+
+// Sidebar toggle
+document.getElementById('sidebar-toggle').addEventListener('click',()=>{
+  const hidden=document.body.classList.toggle('sidebar-hidden');
+  const btn=document.getElementById('sidebar-toggle');
+  btn.textContent=hidden?'▶':'◀';
+  btn.title=hidden?'Show panel':'Hide panel';
+  setTimeout(()=>{updateCanvasSize();renderBg();if(mode==='trails')renderFg();},220);
+});
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+(function init(){
+  M=PRESETS[0].M.map(r=>[...r]);
+  setAllInputs();
+  document.getElementById('presets').value='0';
+  document.getElementById('row-bwd').style.display='none';
+  setTimeout(()=>{
+    updateCanvasSize();initBgParticles();initAxisBalls();
+    renderBg();drawTDPanel();updateInfo();updateHelp();startAnim();
+  },50);
+})();
+</script>
+</body>
+</html>

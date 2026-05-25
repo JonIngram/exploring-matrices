@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrix Transformation Explorer</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  background: #f0ece4;
+  display: flex; flex-direction: column;
+  min-height: 100vh; overflow-y: auto;
+}
+
+#sidebar { display: contents; }
+
+#sec-header   { order: 1; }
+#sec-matrix   { order: 2; }
+#sec-mode     { order: 3; }
+#cvs-wrap     { order: 4; }
+#sec-examples { order: 5; }
+#sec-options  { order: 6; }
+#sec-analysis { order: 7; }
+
+.ctrl {
+  background: #faf8f4;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e8e2d8;
+}
+.ctrl > * + * { margin-top: 9px; }
+
+h1 { font-size: 15px; font-weight: 700; color: #2a1f0e; letter-spacing: -0.2px; }
+.app-sub { font-size: 11px; color: #9a8e7a; font-style: italic; margin-top: 3px; }
+.sec-title {
+  font-family: system-ui, sans-serif;
+  font-size: 9.5px; font-weight: 700; color: #a09070;
+  text-transform: uppercase; letter-spacing: .08em;
+}
+
+/* ── Mode selector ───────────────────────────────────── */
+.mode-sel { display: flex; gap: 5px; }
+.mode-btn {
+  flex: 1; padding: 6px 4px;
+  border: 1.5px solid #d8d0c4; border-radius: 5px;
+  font-size: 11.5px; font-family: system-ui, sans-serif; font-weight: 600;
+  background: #fff; color: #6a5a40; cursor: pointer; text-align: center;
+  transition: background .12s, color .12s, border-color .12s; user-select: none;
+}
+.mode-btn:hover { border-color: #b0a090; background: #f5f0e8; }
+.mode-btn.active { background: #3a2e1e; color: #fff; border-color: #3a2e1e; }
+
+/* ── Collapsible details ─────────────────────────────── */
+details.ctrl > summary {
+  font-family: system-ui, sans-serif;
+  font-size: 9.5px; font-weight: 700; color: #a09070;
+  text-transform: uppercase; letter-spacing: .08em;
+  cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: 5px; user-select: none;
+}
+details.ctrl > summary::-webkit-details-marker { display: none; }
+details.ctrl > summary::before { content: '▸'; font-size: 10px; color: #c0a878; flex-shrink: 0; }
+details.ctrl[open] > summary::before { content: '▾'; }
+details.ctrl[open] > summary { margin-bottom: 9px; }
+
+/* ── Matrix input ────────────────────────────────────── */
+.mat-wrap { display: flex; align-items: center; gap: 6px; }
+.mat-bracket { font-size: 44px; color: #c8b898; font-weight: 300; line-height: 1; font-family: 'Georgia', serif; user-select: none; }
+.mat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; flex: 1; }
+.mat-grid input {
+  width: 100%; text-align: center;
+  border: 1.5px solid #d8d0c4; border-radius: 4px; padding: 5px 4px;
+  font-size: 17px; font-family: 'Courier New', monospace; font-weight: 700;
+  color: #1a1008; background: #fff; outline: none; -moz-appearance: textfield;
+  transition: border-color .15s, box-shadow .15s;
+}
+.mat-grid input::-webkit-inner-spin-button,
+.mat-grid input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.mat-grid input:focus { border-color: #6b8cba; box-shadow: 0 0 0 3px rgba(107,140,186,.18); }
+
+/* ── Selects (presets + shape) ───────────────────────── */
+select {
+  width: 100%; padding: 6px 8px;
+  border: 1.5px solid #d8d0c4; border-radius: 4px;
+  font-size: 12px; font-family: system-ui, sans-serif;
+  background: #fff; color: #2a1f0e; outline: none; cursor: pointer;
+  transition: border-color .15s;
+}
+select:focus { border-color: #6b8cba; }
+
+/* ── Option toggles ──────────────────────────────────── */
+.tog {
+  display: flex; align-items: center; gap: 8px;
+  font-family: system-ui, sans-serif; font-size: 12px; color: #3a2e1e;
+  cursor: pointer; padding: 2px 0; user-select: none;
+}
+.tog + .tog { margin-top: 4px; }
+.tog input[type=checkbox] { cursor: pointer; accent-color: #5a7aaa; width: 14px; height: 14px; flex-shrink: 0; }
+.swatch { width: 18px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.swatch-dashed {
+  width: 18px; height: 10px; border-radius: 2px; flex-shrink: 0;
+  background: repeating-linear-gradient(90deg, #9ca3af 0,#9ca3af 4px, transparent 4px, transparent 7px);
+}
+.swatch-snap {
+  width: 14px; height: 14px; border: 1.5px solid #a09488; border-radius: 50%;
+  position: relative; flex-shrink: 0; margin-left: 2px; margin-right: 2px;
+}
+.swatch-snap::after {
+  content: ''; position: absolute; width: 4px; height: 4px;
+  background: #a09488; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%,-50%);
+}
+
+/* ── Iterations stepper ──────────────────────────────── */
+.stepper {
+  display: flex; align-items: center; gap: 6px;
+  font-family: system-ui, sans-serif; font-size: 12px; color: #3a2e1e;
+  padding: 2px 0;
+}
+.stepper-label { flex: 1; }
+.stepper-btn {
+  width: 22px; height: 22px; border: 1.5px solid #d8d0c4; border-radius: 4px;
+  background: #fff; color: #3a2e1e; font-size: 14px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  padding: 0; line-height: 1; flex-shrink: 0;
+  transition: background .1s, border-color .1s;
+}
+.stepper-btn:hover { background: #f5f0e8; border-color: #b0a090; }
+.stepper-btn:disabled { opacity: 0.35; cursor: default; }
+.stepper-val {
+  width: 20px; text-align: center; font-weight: 700;
+  font-family: 'Courier New', monospace; font-size: 13px; flex-shrink: 0;
+}
+#info { font-family: system-ui, sans-serif; font-size: 11.5px; line-height: 1.65; color: #4a3e2e; }
+#info .irow { margin-bottom: 9px; }
+#info .ilbl {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: #a09070; display: block; margin-bottom: 1px;
+}
+#info b        { color: #1a1008; font-weight: 600; }
+#info .ok      { color: #1a6e3a; font-weight: 600; }
+#info .sliding { color: #5a7aaa; font-weight: 600; }
+#info .dim     { color: #a09070; }
+
+/* ── Canvas ──────────────────────────────────────────── */
+#cvs-wrap {
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px 8px; background: #f0ece4;
+  position: relative;
+}
+
+/* Sizing container — both SVGs fill this absolutely.
+   On mobile it has explicit dimensions; on desktop it stretches
+   to fill #cvs-wrap via align-self: stretch. */
+#cvs-box {
+  position: relative;
+  width: min(calc(100vw - 16px), 75vh);
+  height: min(calc(100vw - 16px), 75vh);
+  background: #fff; border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(60,40,0,.12), 0 1px 4px rgba(60,40,0,.08);
+  overflow: hidden; user-select: none; touch-action: none;
+}
+
+/* Both SVGs fill their container absolutely */
+#cvs-bg, #cvs {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+}
+/* Background SVG: never receives pointer events; promoted to its own
+   compositor layer so it is not repainted when the foreground changes. */
+#cvs-bg { pointer-events: none; will-change: transform; }
+/* Foreground SVG: handles all pointer events */
+#cvs    { cursor: default; }
+
+#zoom-btns {
+  position: absolute; top: 10px; right: 10px;
+  display: flex; gap: 4px; z-index: 10;
+}
+#zoom-btns button {
+  width: 30px; height: 30px;
+  border: 1.5px solid #d8d0c4; border-radius: 5px;
+  background: rgba(250,248,244,0.88);
+  font-size: 18px; font-family: system-ui, sans-serif; font-weight: 500;
+  color: #3a2e1e; cursor: pointer; padding: 0; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .1s, border-color .1s;
+}
+#zoom-btns button:hover { background: #faf8f4; border-color: #b0a090; }
+
+/* ── Desktop ─────────────────────────────────────────── */
+@media (min-width: 640px) {
+  body { flex-direction: row; height: 100vh; min-height: unset; overflow: hidden; }
+  #sidebar {
+    display: flex; flex-direction: column;
+    width: 244px; min-width: 244px;
+    background: #faf8f4; border-right: 1px solid #d8d0c4;
+    overflow-y: auto; box-shadow: 2px 0 8px rgba(60,40,0,.08); z-index: 1;
+  }
+  #sec-header, #sec-matrix, #sec-mode, #sec-examples,
+  #sec-options, #sec-analysis, #cvs-wrap { order: unset; }
+  #sec-analysis { flex: 1; }
+  /* cvs-wrap fills remaining space; cvs-box fills cvs-wrap absolutely.
+     width:auto and height:auto are needed to override the mobile min() dimensions. */
+  #cvs-wrap { flex: 1; padding: 0; }
+  #cvs-box  { position: absolute; inset: 0; width: auto; height: auto; border-radius: 0; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="ctrl" id="sec-header">
+    <h1>Matrix Transformation Explorer</h1>
+    <div class="app-sub">Enter a matrix, then explore how it transforms points, lines, and shapes.</div>
+  </div>
+
+  <div class="ctrl" id="sec-matrix">
+    <div class="sec-title">Matrix M</div>
+    <div class="mat-wrap">
+      <span class="mat-bracket">(</span>
+      <div class="mat-grid">
+        <input type="number" id="m00" step="any" value="1">
+        <input type="number" id="m01" step="any" value="2">
+        <input type="number" id="m10" step="any" value="0">
+        <input type="number" id="m11" step="any" value="1">
+      </div>
+      <span class="mat-bracket">)</span>
+    </div>
+  </div>
+
+  <div class="ctrl" id="sec-mode">
+    <div class="sec-title">Object</div>
+    <div class="mode-sel">
+      <button class="mode-btn active" data-mode="point">Point</button>
+      <button class="mode-btn"        data-mode="line">Line</button>
+      <button class="mode-btn"        data-mode="shape">Shape</button>
+    </div>
+    <div id="shape-sel-row" style="display:none">
+      <select id="shape-sel"></select>
+    </div>
+  </div>
+
+  <div class="ctrl" id="sec-examples">
+    <div class="sec-title">Examples</div>
+    <select id="presets"><option value="">— choose an example —</option></select>
+  </div>
+
+  <details class="ctrl" id="sec-options">
+    <summary>Options</summary>
+    <div class="stepper" title="Show successive images M¹, M², M³… of the object">
+      <span class="stepper-label">Iterations</span>
+      <button class="stepper-btn" id="iters-dec" disabled>−</button>
+      <span class="stepper-val" id="iters-val">1</span>
+      <button class="stepper-btn" id="iters-inc">+</button>
+    </div>
+    <label class="tog" title="Snap dragged points to the nearest integer grid position">
+      <input type="checkbox" id="t-snap" checked>
+      <span class="swatch-snap"></span>
+      Snap to grid points
+    </label>
+    <label class="tog" id="row-showLine" style="display:none" title="Draw the full line through A and B and show its image">
+      <input type="checkbox" id="t-showLine" checked>
+      <span class="swatch" style="background:#c44000"></span>
+      Show line through A and B
+    </label>
+    <label class="tog" title="Draw arrows from each point to its image under M">
+      <input type="checkbox" id="t-arrows" checked>
+      <span class="swatch-dashed"></span>
+      Show transformation arrows
+    </label>
+    <label class="tog" title="Highlight any points which M does not move">
+      <input type="checkbox" id="t-fixed">
+      <span class="swatch" style="background:#0a7830"></span>
+      Show fixed points
+    </label>
+    <label class="tog" title="Show lines which are mapped to themselves">
+      <input type="checkbox" id="t-eigen">
+      <span class="swatch" style="background:#6018c0"></span>
+      Show invariant lines
+    </label>
+    <label class="tog" title="Attempt to display values as exact surds">
+      <input type="checkbox" id="t-surd" checked>
+      <span style="font-size:15px; font-family:serif; color:#6a5a40; flex-shrink:0; width:18px; text-align:center">&#x221a;</span>
+      Display exact values
+    </label>
+  </details>
+
+  <details class="ctrl" id="sec-analysis">
+    <summary>Analysis</summary>
+    <div id="info"><span class="dim">Loading…</span></div>
+  </details>
+</div>
+
+<div id="cvs-wrap">
+  <div id="cvs-box">
+    <svg id="cvs-bg" viewBox="0 0 540 540" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg id="cvs"    viewBox="0 0 540 540" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div id="zoom-btns">
+    <button id="anim-btn" title="Play/pause animation (Space)">⏸</button>
+    <button id="zoom-in"  title="Zoom in">+</button>
+    <button id="zoom-out" title="Zoom out">−</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════════════════
+// CONFIGURATION
+// ══════════════════════════════════════════════════════════
+let SC = 42;
+const SC_MIN = 12, SC_MAX = 150;
+let W = 540, H = 540, CX = 270, CY = 270;
+
+const C = {
+  grid:     '#e8e4dc',
+  axis:     '#a09488',
+  A:        '#1a4ec8',
+  B:        '#c85800',
+  Ai:       '#6890d8',
+  Bi:       '#d89640',
+  linAB:    '#c44000',
+  linImg:   '#d87030',
+  invSlide: '#1848b0',
+  fixed:    '#0a7830',
+  eigen:    '#6018c0',
+};
+
+// ══════════════════════════════════════════════════════════
+// SHAPES
+// Vertices defined relative to shapePos (the draggable anchor).
+// ══════════════════════════════════════════════════════════
+const SHAPES = [
+  {
+    label: 'Unit square',
+    verts: [[0,0],[1,0],[1,1],[0,1]],
+  },
+  {
+    label: 'Unit circle',
+    // 36 vertices (every 10°) give a smooth enough approximation.
+    // The circle transforms to an ellipse under a general matrix,
+    // whose axes are determined by the singular values of M.
+    verts: Array.from({length: 36}, (_, i) => {
+      const a = i * Math.PI / 18;
+      return [Math.cos(a), Math.sin(a)];
+    }),
+  },
+  {
+    label: 'House',
+    // Main structure on integer/half-integer grid; chimney is decorative
+    // Base ±1, walls to y=1, eaves at ±1.5, roof peak (0,2)
+    // Chimney sits on the right slope (gradient −2/3) between x=0.5 and x=0.8
+    verts: [
+      [-1,0],[1,0],[1,1],[1.5,1],
+      [0.8,1.47],[0.8,1.9],[0.5,1.9],[0.5,1.67],
+      [0,2],[-1.5,1],[-1,1],
+    ],
+  },
+  {
+    label: 'Arrow',
+    verts: [
+      [-1,-0.5],[0,-0.5],[0,-1],[1,0],[0,1],[0,0.5],[-1,0.5],
+    ],
+  },
+  {
+    label: 'Letter F',
+    // Consistent 0.5 grid throughout: x ∈ {−1,−0.5,0,0.5}, y ∈ {−1,−0.5,0,0.5,1}
+    verts: [
+      [-1,-1],[-0.5,-1],[-0.5,-0.5],[0,-0.5],
+      [0,0],[-0.5,0],[-0.5,0.5],[0.5,0.5],[0.5,1],[-1,1],
+    ],
+  },
+  {
+    label: 'Triangle',
+    // Right-angled triangle, perpendicular sides of length 1 and 2
+    verts: [[0,0],[2,0],[0,1]],
+  },
+];
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+let M = [[1,2],[0,1]];
+let mode = 'point';
+let pA = {x:1, y:2};
+let pB = {x:3, y:2};
+let shapeIdx = 0;
+let shapePos = {x:0, y:0};
+let drag = null;
+let dragOffset = null;   // {x,y} offset from pointer to anchor at drag start
+let animating = true;
+let animRafId = null;
+let lastAnimTime = null;
+let wasAnimating = false; // record state before drag so we can restore it
+const ANIM_OMEGA = 2 * Math.PI / 20; // one full orbit in 20 seconds
+const tog = { snap: true, showLine: true, arrows: true, fixed: false, eigen: false, surd: true, iters: 1 };
+
+// ══════════════════════════════════════════════════════════
+// PRESETS
+// ══════════════════════════════════════════════════════════
+const PRESETS = [
+  { name: 'Horizontal shear',           M: [[1,2],[0,1]],  A:{x:1,y:2},  B:{x:3,y:2}  },
+  { name: 'Reflection in the x-axis',   M: [[1,0],[0,-1]], A:{x:2,y:1},  B:{x:-2,y:1} },
+  { name: 'Reflection in y = x',        M: [[0,1],[1,0]],  A:{x:3,y:1},  B:{x:1,y:3}  },
+  { name: 'Rotation 90°',               M: [[0,-1],[1,0]], A:{x:3,y:0},  B:{x:0,y:3}  },
+  { name: 'Enlargement scale factor 2', M: [[2,0],[0,2]],  A:{x:1,y:1},  B:{x:-1,y:2} },
+  { name: 'Stretch ×3 in x-direction',  M: [[3,0],[0,1]],  A:{x:1,y:2},  B:{x:1,y:-2} },
+  { name: 'Projection onto x-axis',     M: [[1,0],[0,0]],  A:{x:1,y:2},  B:{x:3,y:1}  },
+  { name: 'Identity',                   M: [[1,0],[0,1]],  A:{x:2,y:1},  B:{x:-1,y:2} },
+  { name: 'Two distinct invariant lines',  M: [[3,1],[1,3]],       A:{x:2,y:2},   B:{x:2,y:-2}  },
+  { name: 'Vertical shear',               M: [[1,0],[1,1]],       A:{x:2,y:1},   B:{x:2,y:3}   },
+  { name: 'Spiral outward',               M: [[1,0.5],[-0.5,1]],  A:{x:3,y:0},   B:{x:2,y:1}   },
+  { name: 'Spiral inward',                M: [[1,-0.5],[0.5,0.5]], A:{x:3,y:0},   B:{x:2,y:1}   },
+  { name: 'Bounce (±√2)',                 M: [[1,1],[1,-1]],       A:{x:2,y:1},   B:{x:-1,y:2}  },
+];
+
+// ══════════════════════════════════════════════════════════
+// COORDINATE HELPERS
+// ══════════════════════════════════════════════════════════
+const toS   = (x, y) => [CX + x*SC, CY - y*SC];
+const frS   = (sx, sy) => ({x:(sx-CX)/SC, y:(CY-sy)/SC});
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const f     = v => +v.toFixed(2);
+
+function getSVGPos(e) {
+  const r = svg.getBoundingClientRect();
+  return frS((e.clientX - r.left)*W/r.width, (e.clientY - r.top)*H/r.height);
+}
+
+const svg   = document.getElementById('cvs');
+const svgBg = document.getElementById('cvs-bg');
+
+let _rafId   = null;
+let _rafFgId = null;
+function scheduleRender() {
+  if (_rafId) return;
+  _rafId = requestAnimationFrame(() => { _rafId = null; render(); });
+}
+function scheduleRenderFg() {
+  if (_rafFgId) return;
+  _rafFgId = requestAnimationFrame(() => { _rafFgId = null; renderFg(); });
+}
+
+// Read dimensions from the foreground SVG element, which fills #cvs-box.
+// Update both SVGs' viewBoxes to match.
+function updateCanvasSize() {
+  const w = svg.clientWidth, h = svg.clientHeight;
+  if (!w || !h) return;
+  W = w; H = h; CX = w/2; CY = h/2;
+  const vb = `0 0 ${W} ${H}`;
+  svg.setAttribute('viewBox', vb);
+  svgBg.setAttribute('viewBox', vb);
+}
+
+// ══════════════════════════════════════════════════════════
+// MATHEMATICS
+// ══════════════════════════════════════════════════════════
+function apply(v) {
+  return [M[0][0]*v[0]+M[0][1]*v[1], M[1][0]*v[0]+M[1][1]*v[1]];
+}
+
+const cross2d = (a, b) => a[0]*b[1] - a[1]*b[0];
+
+function eigenvalues() {
+  const tr=M[0][0]+M[1][1], det=M[0][0]*M[1][1]-M[0][1]*M[1][0];
+  const disc=tr*tr-4*det;
+  if (disc < -1e-9) return null;
+  const sq=Math.sqrt(Math.max(0,disc));
+  const l1=(tr+sq)/2, l2=(tr-sq)/2;
+  return Math.abs(l1-l2)<1e-9 ? [l1] : [l1,l2];
+}
+
+function eigenDir(lam) {
+  const a=M[0][0]-lam, b=M[0][1], c=M[1][0], d=M[1][1]-lam;
+  const v=(a*a+b*b>=c*c+d*d)?[b,-a]:[d,-c];
+  const n=Math.hypot(v[0],v[1]);
+  return n<1e-9 ? null : [v[0]/n,v[1]/n];
+}
+
+function fixedLocus() {
+  const a=M[0][0]-1, b=M[0][1], c=M[1][0], d=M[1][1]-1;
+  if (Math.abs(a)+Math.abs(b)+Math.abs(c)+Math.abs(d)<1e-9) return {t:'all'};
+  if (Math.abs(a*d-b*c)<1e-9) {
+    const v=(a*a+b*b>=c*c+d*d)?[b,-a]:[d,-c];
+    const n=Math.hypot(v[0],v[1]);
+    if (n<1e-9) return {t:'all'};
+    return {t:'line', dir:[v[0]/n,v[1]/n]};
+  }
+  return {t:'pt'};
+}
+
+// A parallel family of invariant lines exists whenever det(M−I) = 0 (i.e. 1 is
+// an eigenvalue). The direction of those lines is the column space of (M−I).
+function parallelFamDir() {
+  // A singular matrix (det=0) cannot have invariant lines — it collapses the
+  // plane onto a line or point, so nothing maps to itself as a line.
+  if (Math.abs(M[0][0]*M[1][1] - M[0][1]*M[1][0]) < 1e-6) return null;
+  const a=M[0][0]-1, b=M[0][1], c=M[1][0], d=M[1][1]-1;
+  if (Math.abs(a)<1e-6&&Math.abs(b)<1e-6&&Math.abs(c)<1e-6&&Math.abs(d)<1e-6) return null;
+  if (Math.abs(a*d-b*c)>1e-6) return null;
+  const n1=Math.hypot(a,c), n2=Math.hypot(b,d);
+  if (n1>1e-6) return [a/n1,c/n1];
+  if (n2>1e-6) return [b/n2,d/n2];
+  return null;
+}
+
+function ptLineDist(pt, lp, ld) {
+  return Math.abs(cross2d([pt[0]-lp[0],pt[1]-lp[1]], ld));
+}
+
+function lineInv() {
+  const A=[pA.x,pA.y], B=[pB.x,pB.y];
+  const ab=[B[0]-A[0],B[1]-A[1]], len=Math.hypot(ab[0],ab[1]);
+  if (len<0.02) return false;
+  const d=[ab[0]/len,ab[1]/len];
+  const Ap=apply(A), Bp=apply(B);
+  // If both points map to the same location, the line collapses — not invariant
+  if (Math.hypot(Bp[0]-Ap[0], Bp[1]-Ap[1]) < 0.02) return false;
+  return ptLineDist(Ap,A,d)<0.1 && ptLineDist(Bp,A,d)<0.1;
+}
+
+function lineIsFixedLocus() {
+  const fl=fixedLocus();
+  if (fl.t!=='line') return false;
+  const A=[pA.x,pA.y], B=[pB.x,pB.y];
+  const ab=[B[0]-A[0],B[1]-A[1]], n=Math.hypot(ab[0],ab[1]);
+  if (n<0.02) return false;
+  const d=[ab[0]/n,ab[1]/n];
+  return Math.abs(cross2d(d,fl.dir))<0.1 && ptLineDist(A,[0,0],fl.dir)<0.1;
+}
+
+function worldVerts() {
+  return SHAPES[shapeIdx].verts.map(([vx,vy])=>[shapePos.x+vx, shapePos.y+vy]);
+}
+
+// Hit test on the bounding box of the current shape, with a small margin
+function nearShape(p) {
+  const wv = worldVerts();
+  const xs=wv.map(v=>v[0]), ys=wv.map(v=>v[1]);
+  const mg=0.3;
+  return p.x>=Math.min(...xs)-mg && p.x<=Math.max(...xs)+mg
+      && p.y>=Math.min(...ys)-mg && p.y<=Math.max(...ys)+mg;
+}
+
+// ══════════════════════════════════════════════════════════
+// SVG BUILDING HELPERS
+// ══════════════════════════════════════════════════════════
+function Lmath(x1,y1,x2,y2,style) {
+  const [sx1,sy1]=toS(x1,y1),[sx2,sy2]=toS(x2,y2);
+  return `<line x1="${f(sx1)}" y1="${f(sy1)}" x2="${f(sx2)}" y2="${f(sy2)}" ${style}/>`;
+}
+
+function fullLine(px,py,dx,dy,style) {
+  // Extent calculated dynamically so lines just cover the visible canvas,
+  // avoiding the cost of rendering large off-screen dashed lines.
+  const ext = Math.hypot(W, H) / SC + 2;
+  const t=-(px*dx+py*dy), cx=px+t*dx, cy=py+t*dy;
+  return Lmath(cx-dx*ext,cy-dy*ext,cx+dx*ext,cy+dy*ext,style);
+}
+
+function arrow(x1,y1,x2,y2,col,op=0.45) {
+  const [sx1,sy1]=toS(x1,y1),[sx2,sy2]=toS(x2,y2);
+  const dx=sx2-sx1,dy=sy2-sy1,len=Math.hypot(dx,dy);
+  if (len<5) return '';
+  const ux=dx/len,uy=dy/len,AHL=14,AHW=6,startGap=12;
+  const bx=sx2-ux*AHL,by=sy2-uy*AHL;
+  if (len<startGap+AHL+2) return '';
+  return `<line x1="${f(sx1+ux*startGap)}" y1="${f(sy1+uy*startGap)}" x2="${f(bx)}" y2="${f(by)}" stroke="${col}" stroke-width="1.8" stroke-dasharray="5,3" opacity="${op}"/>` +
+         `<polygon points="${f(sx2)},${f(sy2)} ${f(bx-uy*AHW)},${f(by+ux*AHW)} ${f(bx+uy*AHW)},${f(by-ux*AHW)}" fill="${col}" opacity="${op}"/>`;
+}
+
+function circ(x,y,r,fill,stroke,sw,extra='') {
+  const [sx,sy]=toS(x,y);
+  return `<circle cx="${f(sx)}" cy="${f(sy)}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${extra}/>`;
+}
+
+function txt(x,y,label,col,sz,bold,dx=10,dy=-8) {
+  const [sx,sy]=toS(x,y),fw=bold?'font-weight="700"':'';
+  return `<text x="${f(sx+dx)}" y="${f(sy+dy)}" fill="${col}" font-size="${sz}" font-family="system-ui,sans-serif" ${fw} paint-order="stroke" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">${label}</text>`;
+}
+
+function svgPolygon(verts,fill,fillOp,stroke,sw,extra='') {
+  const pts=verts.map(([x,y])=>toS(x,y).map(f).join(',')).join(' ');
+  return `<polygon points="${pts}" fill="${fill}" fill-opacity="${fillOp}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round" ${extra}/>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════
+
+// Background SVG: grid, axes, fixed locus, invariant lines.
+// Redrawn only when the matrix, toggles, or canvas size changes.
+// Promoted to a separate compositor layer (will-change: transform on #cvs-bg)
+// so the browser does not repaint it when only the foreground changes.
+function renderBg() {
+  const fl=fixedLocus(), evs=eigenvalues(), pfd=parallelFamDir();
+  let s='';
+
+  s+=`<rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>`;
+  const gx = Math.ceil(CX/SC) + 1, gy = Math.ceil(CY/SC) + 1;
+  // Grid lines use the same step as axis labels so density always matches
+  const minLabelPx = 40;
+  const labelSteps = [1, 2, 5, 10, 20, 50, 100];
+  const lstep = labelSteps.find(st => st * SC >= minLabelPx) ?? 100;
+
+  s+=`<g stroke="${C.grid}" stroke-width="1">`;
+  for (let i = -gy; i <= gy; i++) { if (i % lstep === 0) s+=Lmath(-gx-0.5, i, gx+0.5, i, ''); }
+  for (let i = -gx; i <= gx; i++) { if (i % lstep === 0) s+=Lmath(i, -gy-0.5, i, gy+0.5, ''); }
+  s+='</g>';
+
+  s+=Lmath(-(gx+0.5), 0, gx+0.5, 0, `stroke="${C.axis}" stroke-width="2"`);
+  s+=Lmath(0, -(gy+0.5), 0, gy+0.5, `stroke="${C.axis}" stroke-width="2"`);
+  s+=`<g font-family="system-ui,sans-serif" font-size="11" fill="${C.axis}">`;
+  for (let i=-gx; i<=gx; i++) {
+    if (!i || i % lstep !== 0) continue;
+    const [tx,ty]=toS(i,0); s+=`<text x="${f(tx)}" y="${f(ty+13)}" text-anchor="middle">${i}</text>`;
+  }
+  for (let i=-gy; i<=gy; i++) {
+    if (!i || i % lstep !== 0) continue;
+    const [ux,uy]=toS(0,i); s+=`<text x="${f(ux-8)}" y="${f(uy+4)}" text-anchor="end">${i}</text>`;
+  }
+  const [ox,oy]=toS(0,0);
+  s+=`<text x="${f(ox-10)}" y="${f(oy+14)}" text-anchor="end" fill="${C.axis}">O</text>`;
+  s+='</g>';
+
+  if (tog.fixed) {
+    if (fl.t==='all') {
+      s+=`<rect x="1" y="1" width="${W-2}" height="${H-2}" fill="${C.fixed}" opacity="0.07" rx="6"/>`;
+      s+=`<text x="14" y="22" font-size="11" font-family="system-ui,sans-serif" fill="${C.fixed}" font-style="italic">Every point is fixed</text>`;
+    } else if (fl.t==='line') {
+      s+=fullLine(0,0,fl.dir[0],fl.dir[1],`stroke="${C.fixed}" stroke-width="3" stroke-dasharray="8,4" opacity="0.75"`);
+    } else {
+      s+=circ(0,0,7,C.fixed,'none',0,'opacity="0.65"');
+    }
+  }
+
+  if (tog.eigen && evs && fl.t !== 'all') {
+    const symEvs = tog.surd ? eigenvaluesSymbolic() : null;
+    for (let i=0; i<evs.length; i++) {
+      const lam=evs[i];
+      const v=eigenDir(lam);
+      const lamSym=symEvs?.[i]??null;
+      if (v) {
+        s+=fullLine(0,0,v[0],v[1],`stroke="${C.eigen}" stroke-width="2.6" stroke-dasharray="10,5" opacity="0.7"`);
+        const lx=v[0]*4.5+(-v[1])*0.35, ly=v[1]*4.5+v[0]*0.35;
+        const [slx,sly]=toS(lx,ly);
+        const ls = '\u00d7' + (tog.surd && lamSym ? fmtSym(lamSym) : fmt3sf(lam));
+        s+=`<text x="${f(slx)}" y="${f(sly)}" fill="${C.eigen}" font-size="14" font-family="system-ui,sans-serif" font-weight="700" paint-order="stroke" stroke="#fff" stroke-width="3" opacity="0.9">${ls}</text>`;
+      } else {
+        for (let a=0;a<6;a++) {
+          const r=a*30*Math.PI/180;
+          s+=fullLine(0,0,Math.cos(r),Math.sin(r),`stroke="${C.eigen}" stroke-width="1.8" stroke-dasharray="8,5" opacity="0.4"`);
+        }
+      }
+    }
+    if (pfd) {
+      const perp = [-pfd[1], pfd[0]];
+      // Visible perpendicular half-extent (canvas half-diagonal in math units)
+      const pMax = Math.hypot(CX, CY) / SC;
+      // Choose step so consecutive lines are at least ~30px apart
+      const spacings = [1, 2, 5, 10, 20, 50];
+      const step = spacings.find(st => st * SC >= 30) ?? 50;
+      const kMin = Math.floor(-pMax / step);
+      const kMax = Math.ceil( pMax / step);
+      for (let k = kMin; k <= kMax; k++) {
+        if (k === 0) continue; // k=0 is the central eigenvector line, already drawn above
+        s += fullLine(perp[0]*k*step, perp[1]*k*step, pfd[0], pfd[1],
+          `stroke="${C.eigen}" stroke-width="1.2" stroke-dasharray="7,4" opacity="0.32"`);
+      }
+    }
+  }
+
+  svgBg.innerHTML = s;
+}
+
+// Foreground SVG: the active object (point, line, or shape) and its image.
+// Redrawn on every drag frame; also updates the analysis panel.
+function renderFg() {
+  const A=[pA.x,pA.y], B=[pB.x,pB.y];
+  const Ap=apply(A);
+  const Bp=mode==='line'?apply(B):null;
+  const fl=fixedLocus(), evs=eigenvalues(), pfd=parallelFamDir();
+  const linv=mode==='line'&&tog.showLine&&lineInv();
+  const lfl=linv&&lineIsFixedLocus();
+  const aFixed=Math.hypot(Ap[0]-A[0],Ap[1]-A[1])<0.08;
+  const bFixed=mode==='line'&&!!Bp&&Math.hypot(Bp[0]-B[0],Bp[1]-B[1])<0.08;
+
+  let s='';
+
+  // Opacity schedule: first image full, successive iterates fade geometrically
+  const iterOp = k => k===1 ? 1.0 : Math.pow(0.75, k-1);
+
+  // Chain of iterated images of a single point: chain[0]=source, chain[k]=M^k(source)
+  function chain(p) {
+    const c=[[p[0],p[1]]];
+    for (let k=1; k<=tog.iters; k++) c.push(apply(c[k-1]));
+    return c;
+  }
+
+  if (mode==='point') {
+    const cA=chain(A);
+    for (let k=tog.iters; k>=1; k--) {
+      const op=iterOp(k), p=cA[k];
+      if (tog.arrows) s+=arrow(cA[k-1][0],cA[k-1][1],p[0],p[1],C.A,0.5*op);
+      s+=circ(p[0],p[1],7,'#fff',C.Ai,2.5,`opacity="${op}"`);
+      if (k===1) s+=txt(p[0],p[1],"A′",C.A,14,false,11,-9);
+    }
+    if (aFixed) s+=circ(A[0],A[1],17,'none',C.fixed,2,'stroke-dasharray="4,3" opacity="0.75"');
+    s+=circ(A[0],A[1],10,C.A,'#fff',2.5);
+    s+=txt(A[0],A[1],'A',C.A,16,true,12,-11);
+
+  } else if (mode==='line') {
+    const cA=chain(A), cB=chain(B);
+    if (tog.showLine) {
+      const ab=[B[0]-A[0],B[1]-A[1]], abLen=Math.hypot(ab[0],ab[1]);
+      if (abLen>0.03) {
+        const dAB=[ab[0]/abLen,ab[1]/abLen];
+        // Pre-image line
+        if (linv) {
+          s+=fullLine(A[0],A[1],dAB[0],dAB[1],`stroke="${lfl?C.fixed:C.invSlide}" stroke-width="${lfl?'3.8':'3.2'}" opacity="0.85"`);
+        } else {
+          s+=fullLine(A[0],A[1],dAB[0],dAB[1],`stroke="${C.linAB}" stroke-width="2.2" stroke-dasharray="8,4" opacity="0.65"`);
+        }
+        // Iterated image lines (furthest first so k=1 lands on top)
+        for (let k=tog.iters; k>=1; k--) {
+          const Ak=cA[k], Bk=cB[k];
+          const d=[Bk[0]-Ak[0],Bk[1]-Ak[1]], len=Math.hypot(d[0],d[1]);
+          if (len>0.03) {
+            const op=iterOp(k);
+            s+=fullLine(Ak[0],Ak[1],d[0]/len,d[1]/len,
+              `stroke="${C.linImg}" stroke-width="1.8" stroke-dasharray="8,4" opacity="${(0.5*op).toFixed(2)}"`);
+          }
+        }
+      }
+    }
+    // Single midpoint arrow when line is shown, per-iterate arrows otherwise
+    if (tog.arrows) {
+      if (tog.showLine) {
+        for (let k=tog.iters; k>=1; k--) {
+          const op=iterOp(k);
+          const mxS=(cA[k-1][0]+cB[k-1][0])/2, myS=(cA[k-1][1]+cB[k-1][1])/2;
+          const mxE=(cA[k][0]+cB[k][0])/2,     myE=(cA[k][1]+cB[k][1])/2;
+          s+=arrow(mxS,myS,mxE,myE,C.A,0.5*op);
+        }
+      } else {
+        for (let k=tog.iters; k>=1; k--) {
+          const op=iterOp(k);
+          s+=arrow(cA[k-1][0],cA[k-1][1],cA[k][0],cA[k][1],C.A,0.4*op);
+          s+=arrow(cB[k-1][0],cB[k-1][1],cB[k][0],cB[k][1],C.B,0.4*op);
+        }
+      }
+    }
+    if (aFixed) s+=circ(A[0],A[1],17,'none',C.fixed,2,'stroke-dasharray="4,3" opacity="0.75"');
+    if (bFixed) s+=circ(B[0],B[1],17,'none',C.fixed,2,'stroke-dasharray="4,3" opacity="0.75"');
+    s+=circ(Ap[0],Ap[1],7,'#fff',C.Ai,2.5); s+=txt(Ap[0],Ap[1],"A′",C.A,14,false,11,-9);
+    s+=circ(Bp[0],Bp[1],7,'#fff',C.Bi,2.5); s+=txt(Bp[0],Bp[1],"B′",C.B,14,false,11,-9);
+    s+=circ(A[0],A[1],10,C.A,'#fff',2.5);   s+=txt(A[0],A[1],'A',C.A,16,true,12,-11);
+    s+=circ(B[0],B[1],10,C.B,'#fff',2.5);   s+=txt(B[0],B[1],'B',C.B,16,true,12,-11);
+
+  } else if (mode==='shape') {
+    const pre=worldVerts();
+    // Build chain of iterated vertex sets
+    const vc=[pre];
+    for (let k=1; k<=tog.iters; k++) vc.push(vc[k-1].map(v=>apply(v)));
+    // Draw iterates furthest first; centroid arrow for first iterate only
+    for (let k=tog.iters; k>=1; k--) {
+      const op=iterOp(k);
+      s+=svgPolygon(vc[k],C.Ai,0.18*op,C.Ai,2.2,`opacity="${op}"`);
+      if (tog.arrows) {
+        const pcx=vc[k-1].reduce((t,v)=>t+v[0],0)/vc[k-1].length;
+        const pcy=vc[k-1].reduce((t,v)=>t+v[1],0)/vc[k-1].length;
+        const icx=vc[k].reduce((t,v)=>t+v[0],0)/vc[k].length;
+        const icy=vc[k].reduce((t,v)=>t+v[1],0)/vc[k].length;
+        s+=arrow(pcx,pcy,icx,icy,C.A,0.55*op);
+      }
+    }
+    s+=svgPolygon(pre,C.A,0.14,C.A,2.2); // pre-image always on top
+  }
+
+  svg.innerHTML = s;
+  updateInfo(fl,evs,linv,lfl,pfd,aFixed,bFixed);
+}
+
+function render() {
+  renderBg();
+  renderFg();
+}
+
+// ══════════════════════════════════════════════════════════
+// SYMBOLIC ARITHMETIC
+// Eigenvalues of a 2×2 integer matrix are always (tr ± k√n)/2 where
+// tr, k, n are integers and n is square-free. We carry this exact form
+// through all formatting rather than guessing nice forms numerically.
+// Type: {a, b, n, c} represents (a + b√n) / c, canonical form.
+// ══════════════════════════════════════════════════════════
+
+function gcd(a, b) { a=Math.abs(a|0); b=Math.abs(b|0); if(!a&&!b) return 1; while(b){[a,b]=[b,a%b];} return a; }
+
+// Format integer ratio p/q with unicode fraction glyphs where available
+function fmtRat(p, q) {
+  const neg = p < 0; p = Math.abs(p);
+  if (p === 0) return '0';
+  if (q === 1) return neg ? '\u2212' + p : String(p);
+  const UF = {
+    102:'\u00bd', 103:'\u2153', 203:'\u2154', 104:'\u00bc', 304:'\u00be',
+    105:'\u2155', 205:'\u2156', 305:'\u2157', 405:'\u2158',
+    106:'\u2159', 506:'\u215a', 108:'\u215b', 308:'\u215c', 508:'\u215d', 708:'\u215e',
+  };
+  const s = UF[p*100+q] || `${p}/${q}`;
+  return neg ? '\u2212' + s : s;
+}
+
+// Try to express v as p/q (small denominator). Used in fmtDir's numeric fallback.
+function asRational(v, maxQ=12) {
+  const sign = v < 0 ? -1 : 1; v = Math.abs(v);
+  for (let q = 1; q <= maxQ; q++) {
+    const p = Math.round(v * q);
+    if (Math.abs(v - p/q) < 1e-6) { const g=gcd(p,q); return [sign*p/g, q/g]; }
+  }
+  return null;
+}
+
+// Factor the largest perfect square from d: returns {sqFree: n, sqFactor: k} with d = k²n
+function sqFreeDecomp(d) {
+  if (d <= 0) return {sqFree: d, sqFactor: 0};
+  let n = d, k = 1;
+  for (let p = 2; p*p <= d; p++) while (n%(p*p)===0) { n/=p*p; k*=p; }
+  return {sqFree: n, sqFactor: k};
+}
+
+// Canonical form of (a + b√n)/c: reduce by gcd, ensure c > 0, collapse √0 and √1.
+function symSimplify(a, b, n, c) {
+  if (c===0) return {a:0,b:0,n:0,c:1};
+  if (c<0)  { a=-a; b=-b; c=-c; }
+  if (n===0) b=0;
+  if (n===1) { a+=b; b=0; n=0; }
+  const g = gcd(gcd(Math.abs(a), Math.abs(b)), c);
+  const res = {a:a/g, b:b/g, n, c:c/g};
+  // 0/c = 0 regardless of c — normalise to avoid "0/2" etc.
+  if (res.a===0 && res.b===0) res.c=1;
+  return res;
+}
+
+// Numeric value of a symbolic form (for sign checks)
+function symVal({a,b,n,c}) { return (a + b*Math.sqrt(n||0)) / c; }
+
+// Format (a + b√n)/c as a display string
+function fmtSym({a,b,n,c}) {
+  const M='\u2212', R='\u221a';
+  if (b===0 || n===0) return fmtRat(a, c);           // purely rational
+  const ab=Math.abs(b), surd=ab===1?`${R}${n}`:`${ab}${R}${n}`;
+  if (a===0) {                                         // purely surd
+    const s = c===1 ? surd : `${surd}/${c}`;
+    return b<0 ? M+s : s;
+  }
+  // Mixed — choose ordering so the display is conventional
+  const aa=Math.abs(a);
+  let numer;
+  if      (a>0 && b>0) numer=`${a} + ${surd}`;
+  else if (a>0 && b<0) numer=`${a} \u2212 ${surd}`;
+  else if (a<0 && b>0) numer=`${surd} \u2212 ${aa}`;  // √n before −|a|
+  else {                                               // both negative: factor out −
+    const inner=fmtSym({a:-a,b:-b,n,c});
+    return inner.includes(' ') ? `${M}(${inner})` : `${M}${inner}`;
+  }
+  return c===1 ? numer : `(${numer})/${c}`;
+}
+
+// Compute eigenvalues of M symbolically. Returns [{a,b,n,c},...] or null (complex).
+// Order matches numeric eigenvalues(): larger eigenvalue first.
+function eigenvaluesSymbolic() {
+  const tr  = M[0][0]+M[1][1];
+  const det = M[0][0]*M[1][1]-M[0][1]*M[1][0];
+  const disc = tr*tr - 4*det;
+  if (disc < 0) return null;
+  const {sqFree:n, sqFactor:k} = sqFreeDecomp(disc);
+  const lam1 = symSimplify(tr,  k, n, 2);   // (tr + k√n)/2
+  const lam2 = symSimplify(tr, -k, n, 2);   // (tr − k√n)/2
+  return disc===0 ? [lam1] : [lam1, lam2];
+}
+
+// Symbolic slope of the eigenvector for lamSym, derived algebraically.
+// Returns a sym, or null if the eigenvector is a coordinate axis (caller falls back to numeric).
+function eigenDirSymbolic(lamSym) {
+  const p=M[0][0], q=M[0][1], r=M[1][0], s=M[1][1];
+  const {a,b,n,c} = lamSym;
+  if (q!==0) {
+    // Null vector of row 0 of (M−λI): slope = (a − p·c + b√n)/(c·q)
+    return symSimplify(a-p*c, b, n, c*q);
+  }
+  if (r!==0) {
+    // Null vector of row 1, rationalized: slope = r·c·(a−s·c)/D, surd coeff −r·c·b/D
+    // where D = (a−s·c)² − b²n
+    const A=a-s*c, D=A*A-b*b*n;
+    if (D===0) return null;
+    return symSimplify(r*c*A, -r*c*b, n, D);
+  }
+  return null; // diagonal — eigenvectors are coordinate axes
+}
+
+// ══════════════════════════════════════════════════════════
+// INFO PANEL FORMATTERS
+// ══════════════════════════════════════════════════════════
+
+// Format a number to 3 significant figures, showing integers without decimal point
+function fmt3sf(v) {
+  if (Math.abs(v) < 1e-9) return '0';
+  const r = Math.round(v);
+  if (Math.abs(v - r) < 1e-9) return String(r);
+  return (+v.toPrecision(3)).toString();
+}
+
+// Scale-factor label "×value". Uses exact symbolic form when tog.surd and sym provided.
+function fmtLam(lam, lamSym=null) {
+  if (tog.surd && lamSym) return '\u00d7' + fmtSym(lamSym);
+  return '\u00d7' + fmt3sf(lam);
+}
+
+// Format a symbolic slope as a "y = ..." direction string.
+function fmtDirSym(slopeSym) {
+  const ms = fmtSym(slopeSym);
+  if (ms==='0')       return 'the x-axis';
+  if (ms==='1')       return 'y = x';
+  if (ms==='\u22121') return 'y = \u2212x';
+  const needsParens = !ms.startsWith('(') && (ms.includes(' ') || ms.includes('/'));
+  const expr = needsParens ? `(${ms})` : ms;
+  return `y = ${expr}${expr.length>1 ? ' ' : ''}x`;
+}
+
+// Format a direction vector as a "y = ..." string.
+// Passes through to fmtDirSym when surd mode is on and a symbolic slope is available.
+function fmtDir(dir, slopeSym=null) {
+  if (tog.surd && slopeSym) return fmtDirSym(slopeSym);
+  if (!dir) return '?';
+  const [dx,dy] = dir;
+  if (Math.abs(dx)<0.01) return 'the y-axis';
+  if (Math.abs(dy)<0.01) return 'the x-axis';
+  const m=dy/dx;
+  // Rational detection for fixed-locus directions (always rational for integer matrices)
+  const rat=asRational(m, 12);
+  const ms = rat ? fmtRat(rat[0], rat[1]) : fmt3sf(m);
+  if (ms==='1')       return 'y = x';
+  if (ms==='\u22121') return 'y = \u2212x';
+  const needsParens = ms.includes('/');
+  const expr = needsParens ? `(${ms})` : ms;
+  return `y = ${expr}${expr.length>1 ? ' ' : ''}x`;
+}
+
+function updateInfo(fl,evs,linv,lfl,pfd,aFixed,bFixed) {
+  let h='';
+
+  h+=`<div class="irow"><span class="ilbl">Fixed points</span>`;
+  if (fl.t==='all') h+=`<span class="ok">Every point is fixed.</span>`;
+  else if (fl.t==='line') h+=`Every point on <b>${fmtDir(fl.dir)}</b>.`;
+  else h+=`The origin only.`;
+  h+=`</div>`;
+
+  h+=`<div class="irow"><span class="ilbl">Invariant lines</span>`;
+  // Compute symbolic eigenvalues once; indices match numeric evs[] array.
+  const symEvs = tog.surd ? eigenvaluesSymbolic() : null;
+
+  if (fl.t==='all') {
+    h+=`Every line is invariant: every point on it is fixed.`;
+  } else if (!evs) {
+    h+=`<span class="dim">None. No line maps to itself under this transformation.</span>`;
+  } else if (evs.length===1) {
+    const lam=evs[0], v=eigenDir(lam);
+    const lamSym=symEvs?.[0]??null;
+    const slopeSym=(lamSym&&v)?eigenDirSymbolic(lamSym):null;
+    const dirStr=()=>fmtDir(v,slopeSym);
+    if (!v) {
+      h+=`Every line through the origin is invariant. `;
+      if (Math.abs(lam)<1e-6) {
+        h+=`Every point collapses to the origin.`;
+      } else {
+        const absLamSym=(lamSym&&symVal(lamSym)<0)?{a:-lamSym.a,b:-lamSym.b,n:lamSym.n,c:lamSym.c}:lamSym;
+        h+=lam<0?`Points scale (factor ${fmtLam(Math.abs(lam),absLamSym)}) and reflect through the origin. `
+                :`Points scale radially (factor ${fmtLam(lam,lamSym)}). `;
+        h+=`None are fixed. No other lines are invariant.`;
+      }
+    } else if (pfd) {
+      h+=`Every line parallel to <b>${dirStr()}</b> is invariant: an infinite family of parallel lines.<br>`
+        +`Points on <b>${dirStr()}</b> itself are fixed. `
+        +`On the other parallel lines, points slide along the line. The further from the centre, the further they slide.`;
+    } else {
+      h+=`One invariant line through the origin: <b>${dirStr()}</b> `;
+      if (Math.abs(lam)<1e-6) h+=`(every point on it collapses to the origin). `;
+      else {
+        const absLamSym=(lamSym&&symVal(lamSym)<0)?{a:-lamSym.a,b:-lamSym.b,n:lamSym.n,c:lamSym.c}:lamSym;
+        h+=lam<0?`(scale factor ${fmtLam(Math.abs(lam),absLamSym)}, reflected through origin). `:`(scale factor ${fmtLam(lam,lamSym)}). `;
+      }
+      h+=`No invariant lines through other points.`;
+    }
+  } else {
+    const [l1,l2]=evs, v1=eigenDir(l1), v2=eigenDir(l2);
+    const sym1=symEvs?.[0]??null, sym2=symEvs?.[1]??null;
+    const slope1=sym1?eigenDirSymbolic(sym1):null, slope2=sym2?eigenDirSymbolic(sym2):null;
+    if (pfd) {
+      const fi=Math.abs(l1-1)<1e-6?0:1;
+      const lF=fi===0?l1:l2, lO=fi===0?l2:l1;
+      const vF=fi===0?v1:v2, vO=fi===0?v2:v1;
+      const symF=fi===0?sym1:sym2, symO=fi===0?sym2:sym1;
+      const slopeF=fi===0?slope1:slope2, slopeO=fi===0?slope2:slope1;
+      const aL=Math.abs(lO);
+      const symOabs=(symO&&symVal(symO)<0)?{a:-symO.a,b:-symO.b,n:symO.n,c:symO.c}:symO;
+      const act=aL<1e-6?`collapse onto the line of fixed points`
+        :lO<0?`scale towards the line of fixed points (factor ${fmtLam(aL,symOabs)}) and reflect across it`
+        :aL<1?`scale towards the line of fixed points (factor ${fmtLam(aL,symOabs)})`
+             :`stretch away from the line of fixed points (factor ${fmtLam(aL,symOabs)})`;
+      h+=`Two invariant lines through the origin: <b>${fmtDir(vF,slopeF)}</b> (a line of fixed points) and <b>${fmtDir(vO,slopeO)}</b> (scale factor ${fmtLam(lO,symO)}).<br><br>`
+        +`Every line parallel to <b>${fmtDir(vO,slopeO)}</b> is also invariant: an infinite family.<br>`
+        +`Points on these parallel lines ${act}.`;
+    } else {
+      const desc=(lam,v,lamSym,slopeSym)=>{
+        if (!v) return '';
+        const absLamSym=(lamSym&&symVal(lamSym)<0)?{a:-lamSym.a,b:-lamSym.b,n:lamSym.n,c:lamSym.c}:lamSym;
+        const ld=Math.abs(lam)<1e-6?`every point collapses to the origin`
+          :Math.abs(lam-1)<1e-6?`line of fixed points`
+          :lam<0?`scale factor ${fmtLam(Math.abs(lam),absLamSym)}, reflected through origin`
+          :`scale factor ${fmtLam(lam,lamSym)}`;
+        return `<b>${fmtDir(v,slopeSym)}</b>: ${ld}`;
+      };
+      h+=`Two invariant lines through the origin:<br>${desc(l1,v1,sym1,slope1)}<br>${desc(l2,v2,sym2,slope2)}<br>`
+        +`<span class="dim">No invariant lines through other points.</span>`;
+    }
+  }
+  h+=`</div>`;
+
+  if (mode==='line'&&tog.showLine) {
+    const ab=[pB.x-pA.x,pB.y-pA.y];
+    if (Math.hypot(ab[0],ab[1])>0.03) {
+      h+=`<div class="irow"><span class="ilbl">Line AB</span>`;
+      const Ap=apply([pA.x,pA.y]), Bp=apply([pB.x,pB.y]);
+      const imgLen=Math.hypot(Bp[0]-Ap[0], Bp[1]-Ap[1]);
+      if (imgLen < 0.02) {
+        h+=`<span class="dim">Collapses to a single point — not an invariant line.</span>`;
+      } else if (lfl) {
+        h+=`<span class="ok">✓ Line of fixed points.</span>`;
+      } else if (linv) {
+        h+=`<span class="sliding">✓ Invariant: points map to points on the same line.</span>`;
+      } else {
+        h+=`<span class="dim">Not invariant: maps to a different line.</span>`;
+      }
+      h+=`</div>`;
+    }
+  }
+
+  if (mode !== 'shape' && (aFixed||bFixed) && fl.t!=='all') {
+    h+=`<div class="irow"><span class="ilbl">Note</span>`;
+    if (aFixed&&bFixed&&mode==='line') h+=`<span class="ok">Both A and B are fixed points.</span>`;
+    else if (aFixed)                    h+=`<span class="ok">A is a fixed point.</span>`;
+    else if (bFixed&&mode==='line')     h+=`<span class="ok">B is a fixed point.</span>`;
+    h+=`</div>`;
+  }
+
+  // ── Area, orientation & angles ──────────────────────────
+  const det  = M[0][0]*M[1][1] - M[0][1]*M[1][0];
+  const absD = Math.abs(det);
+  const fmtN = v => Math.abs(v) < 1e-9 ? '0' : (Math.abs(v-Math.round(v))<1e-9 ? String(Math.round(v)) : (+v.toPrecision(3)).toString());
+
+  h += `<div class="irow"><span class="ilbl">Area &amp; orientation</span>`;
+  h += `det(M) = <b>${fmtN(det)}</b>. `;
+  if (absD < 1e-6) {
+    h += `The transformation collapses the plane onto a line (or point); all area is destroyed.`;
+  } else {
+    h += absD > 1-1e-6 && absD < 1+1e-6
+      ? `Area is preserved. `
+      : `Areas are scaled by a factor of <b>${fmtN(absD)}</b>. `;
+    h += det > 0
+      ? `Orientation is preserved: tracing the original shape anticlockwise, the image also goes anticlockwise.`
+      : `Orientation is reversed: tracing the original anticlockwise, the image goes clockwise. The transformation includes a reflection component.`;
+  }
+  h += `</div>`;
+
+  // ── Singular values ─────────────────────────────────────
+  // MᵀM has trace = a²+b²+c²+d² and det = (det M)²
+  // Singular values are the square roots of eigenvalues of MᵀM
+  {
+    const a=M[0][0], b=M[0][1], c=M[1][0], d=M[1][1];
+    const trATA = a*a+b*b+c*c+d*d;
+    const detM  = a*d-b*c;
+    const detATA = detM*detM;
+    const disc = trATA*trATA - 4*detATA;
+    const sq   = disc > 0 ? Math.sqrt(disc) : 0;
+    const sv1  = Math.sqrt(Math.max(0, (trATA+sq)/2));
+    const sv2  = Math.sqrt(Math.max(0, (trATA-sq)/2));
+    const equal = Math.abs(sv1-sv2) < 1e-6;
+
+    h += `<div class="irow"><span class="ilbl">Singular values</span>`;
+    if (absD < 1e-6) {
+      // Already told them about collapse in the area section — keep this brief
+      h += `At least one singular value is 0: one direction is completely collapsed.`;
+    } else if (equal) {
+      const k = fmt3sf(sv1);
+      h += `Both singular values equal <b>${k}</b>: M stretches all directions equally. `;
+      h += `The unit circle maps to a circle of radius <b>${k}</b>.`;
+    } else {
+      const s1=fmt3sf(sv1), s2=fmt3sf(sv2);
+      h += `The unit circle maps to an ellipse with semi-axes <b>${s1}</b> and <b>${s2}</b>. `;
+      h += `M stretches space by at most <b>${s1}</b> (along the major axis) and at least <b>${s2}</b> (along the minor axis). `;
+      h += `<span class="dim">Note: ${s1} × ${s2} = ${fmtN(Math.abs(detM))}, the area scale factor.</span>`;
+    }
+    h += `</div>`;
+  }
+  if (absD > 1e-6) {
+    const a=M[0][0], b=M[0][1], c=M[1][0], d=M[1][1];
+    const c1sq = a*a+c*c, c2sq = b*b+d*d, dot = a*b+c*d;
+    const isConf = Math.abs(dot) < 1e-6 && Math.abs(c1sq-c2sq) < 1e-6;
+    if (isConf) {
+      const k = Math.sqrt(c1sq);
+      const isIsom = Math.abs(k-1) < 1e-6;
+      // Pure enlargement: M = kI (b=c=0, a=d=k>0) — no rotation involved
+      const isPureEnlargement = Math.abs(b)<1e-6 && Math.abs(c)<1e-6 && Math.abs(a-d)<1e-6 && a>0;
+      h += `<div class="irow"><span class="ilbl">Angles</span>`;
+      if (isPureEnlargement) {
+        h += isIsom
+          ? `Angles and distances are both preserved. This is the identity transformation.`
+          : `Angles between lines are preserved. This is an enlargement (scale factor ${fmtN(k)}).`;
+      } else if (det > 0) {
+        h += isIsom
+          ? `Angles and distances are both preserved. This is a rotation.`
+          : `Angles between lines are preserved. This is a rotation combined with an enlargement (scale factor ${fmtN(k)}).`;
+      } else {
+        h += isIsom
+          ? `Angles and distances are both preserved. This is a reflection.`
+          : `Angles between lines are preserved. This is a reflection combined with an enlargement (scale factor ${fmtN(k)}).`;
+      }
+      h += `</div>`;
+    }
+  }
+
+  // Only update the DOM if content has changed, avoiding layout recalculation
+  // on every drag frame when the matrix is constant.
+  const newHTML = h || '<span class="dim">—</span>';
+  const infoEl = document.getElementById('info');
+  if (infoEl.innerHTML !== newHTML) infoEl.innerHTML = newHTML;
+}
+
+// ══════════════════════════════════════════════════════════
+// ANIMATION
+// ══════════════════════════════════════════════════════════
+
+function setAnimating(on) {
+  animating = on;
+  const btn = document.getElementById('anim-btn');
+  if (btn) btn.textContent = on ? '⏸' : '▶';
+  if (on) {
+    lastAnimTime = null; // reset timing so first frame doesn't jump
+    if (!animRafId) animRafId = requestAnimationFrame(animFrame);
+  } else {
+    if (animRafId) { cancelAnimationFrame(animRafId); animRafId = null; }
+  }
+}
+
+function animFrame(ts) {
+  if (!animating) { animRafId = null; return; }
+  if (lastAnimTime !== null) {
+    // Cap dt to avoid a large jump when the tab was hidden
+    const dt = Math.min((ts - lastAnimTime) / 1000, 0.1);
+    const dA = ANIM_OMEGA * dt;
+    const cos = Math.cos(dA), sin = Math.sin(dA);
+    const rot = (x, y) => [x*cos - y*sin, x*sin + y*cos];
+    if (mode === 'point') {
+      [pA.x, pA.y] = rot(pA.x, pA.y);
+    } else if (mode === 'line') {
+      [pA.x, pA.y] = rot(pA.x, pA.y);
+      [pB.x, pB.y] = rot(pB.x, pB.y);
+    } else if (mode === 'shape') {
+      [shapePos.x, shapePos.y] = rot(shapePos.x, shapePos.y);
+    }
+    renderFg(); // background is unchanged during animation
+  }
+  lastAnimTime = ts;
+  animRafId = requestAnimationFrame(animFrame);
+}
+
+// ══════════════════════════════════════════════════════════
+// DRAG EVENTS
+// ══════════════════════════════════════════════════════════
+const DRAG_THRESH      = 0.45;
+const LINE_DRAG_THRESH = 0.22;
+
+function getSnappedPos(x,y) {
+  const xb=CX/SC, yb=CY/SC;
+  const cx=clamp(x,-xb,xb), cy=clamp(y,-yb,yb);
+  if (!tog.snap) return {x:cx,y:cy};
+  const rx=Math.round(cx), ry=Math.round(cy);
+  return Math.hypot(cx-rx,cy-ry)<0.28?{x:rx,y:ry}:{x:cx,y:cy};
+}
+
+function onDown(e) {
+  wasAnimating = animating;
+  if (animating) setAnimating(false);
+  const p=getSVGPos(e);
+  if (mode==='point') {
+    if (Math.hypot(p.x-pA.x,p.y-pA.y)<DRAG_THRESH) { drag='A'; e.preventDefault(); }
+  } else if (mode==='line') {
+    const dA=Math.hypot(p.x-pA.x,p.y-pA.y), dB=Math.hypot(p.x-pB.x,p.y-pB.y);
+    if (dA<DRAG_THRESH||dB<DRAG_THRESH) {
+      drag=dA<=dB?'A':'B'; e.preventDefault();
+    } else if (tog.showLine) {
+      const ab=[pB.x-pA.x,pB.y-pA.y], len=Math.hypot(ab[0],ab[1]);
+      if (len>0.02&&Math.abs(cross2d([p.x-pA.x,p.y-pA.y],[ab[0]/len,ab[1]/len]))<LINE_DRAG_THRESH) {
+        drag='line'; dragOffset={x:pA.x-p.x,y:pA.y-p.y}; e.preventDefault();
+      }
+    }
+  } else if (mode==='shape') {
+    if (nearShape(p)) {
+      drag='shape';
+      dragOffset={x:shapePos.x-p.x, y:shapePos.y-p.y};
+      e.preventDefault();
+    }
+  }
+}
+
+function onMove(e) {
+  const p=getSVGPos(e);
+  if (!drag) {
+    let cursor='default';
+    if (mode==='point') {
+      if (Math.hypot(p.x-pA.x,p.y-pA.y)<DRAG_THRESH) cursor='grab';
+    } else if (mode==='line') {
+      const dA=Math.hypot(p.x-pA.x,p.y-pA.y), dB=Math.hypot(p.x-pB.x,p.y-pB.y);
+      if (dA<DRAG_THRESH||dB<DRAG_THRESH) cursor='grab';
+      else if (tog.showLine) {
+        const ab=[pB.x-pA.x,pB.y-pA.y], len=Math.hypot(ab[0],ab[1]);
+        if (len>0.02&&Math.abs(cross2d([p.x-pA.x,p.y-pA.y],[ab[0]/len,ab[1]/len]))<LINE_DRAG_THRESH) cursor='move';
+      }
+    } else if (mode==='shape') {
+      if (nearShape(p)) cursor='move';
+    }
+    if (svg.style.cursor!==cursor) svg.style.cursor=cursor;
+    return;
+  }
+  e.preventDefault();
+
+  const xb=CX/SC, yb=CY/SC;
+  if (drag==='A'||drag==='B') {
+    const s=getSnappedPos(p.x,p.y);
+    if (drag==='A') { pA.x=s.x; pA.y=s.y; } else { pB.x=s.x; pB.y=s.y; }
+  } else if (drag==='line') {
+    const newAx=clamp(p.x+dragOffset.x,-xb,xb);
+    const newAy=clamp(p.y+dragOffset.y,-yb,yb);
+    const dx=newAx-pA.x, dy=newAy-pA.y;
+    pA.x=newAx; pA.y=newAy;
+    pB.x=clamp(pB.x+dx,-xb,xb);
+    pB.y=clamp(pB.y+dy,-yb,yb);
+  } else if (drag==='shape') {
+    const raw={x:p.x+dragOffset.x, y:p.y+dragOffset.y};
+    shapePos.x=clamp(raw.x,-xb,xb);
+    shapePos.y=clamp(raw.y,-yb,yb);
+  }
+  scheduleRenderFg();
+}
+
+// Nudge shapePos on release so at least part of the shape stays in the visible area
+function clampShapeToView() {
+  const verts=SHAPES[shapeIdx].verts;
+  const relXs=verts.map(([x])=>x), relYs=verts.map(([,y])=>y);
+  const minRX=Math.min(...relXs), maxRX=Math.max(...relXs);
+  const minRY=Math.min(...relYs), maxRY=Math.max(...relYs);
+  const xb=CX/SC, yb=CY/SC;
+  if (shapePos.x+maxRX < -xb) shapePos.x=-xb-maxRX;
+  if (shapePos.x+minRX >  xb) shapePos.x= xb-minRX;
+  if (shapePos.y+maxRY < -yb) shapePos.y=-yb-maxRY;
+  if (shapePos.y+minRY >  yb) shapePos.y= yb-minRY;
+}
+
+function onUp() {
+  if (drag) {
+    if (drag === 'shape') clampShapeToView();
+    drag=null; dragOffset=null; svg.style.cursor='default';
+    render();
+    if (wasAnimating) setAnimating(true);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// ZOOM & POINTER EVENTS
+// ══════════════════════════════════════════════════════════
+function applyZoom(factor) { SC = clamp(SC * factor, SC_MIN, SC_MAX); scheduleRender(); }
+
+const activePointers = new Map(); // pointerId → {x, y} in client coords
+let pinchStartDist = null, pinchStartSC = null;
+
+function getPinchDist() {
+  const pts = [...activePointers.values()];
+  return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+}
+
+svg.addEventListener('pointerdown', e => {
+  svg.setPointerCapture(e.pointerId);
+  activePointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  if (activePointers.size === 2) {
+    // Second finger down — cancel any drag and start pinch
+    drag = null; dragOffset = null;
+    pinchStartDist = getPinchDist();
+    pinchStartSC   = SC;
+  } else {
+    onDown(e);
+  }
+});
+
+svg.addEventListener('pointermove', e => {
+  if (activePointers.has(e.pointerId)) {
+    activePointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  }
+  if (activePointers.size === 2 && pinchStartDist !== null) {
+    SC = clamp(pinchStartSC * getPinchDist() / pinchStartDist, SC_MIN, SC_MAX);
+    scheduleRender();
+    return;
+  }
+  onMove(e);
+});
+
+svg.addEventListener('pointerup', e => {
+  activePointers.delete(e.pointerId);
+  if (activePointers.size < 2) { pinchStartDist = null; pinchStartSC = null; }
+  onUp();
+});
+
+svg.addEventListener('wheel', e => {
+  e.preventDefault();
+  applyZoom(e.deltaY < 0 ? 1.15 : 1/1.15);
+}, {passive: false});
+
+document.getElementById('anim-btn').addEventListener('click', () => setAnimating(!animating));
+document.getElementById('zoom-in' ).addEventListener('click', () => applyZoom(1.25));
+document.getElementById('zoom-out').addEventListener('click', () => applyZoom(1 / 1.25));
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+    e.preventDefault();
+    setAnimating(!animating);
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+// UI CONTROLS
+// ══════════════════════════════════════════════════════════
+function setMode(m) {
+  mode=m;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  document.getElementById('row-showLine').style.display=m==='line'?'':'none';
+  document.getElementById('shape-sel-row').style.display=m==='shape'?'':'none';
+  render();
+}
+
+function setInputs() {
+  ['m00','m01','m10','m11'].forEach((id,i)=>
+    document.getElementById(id).value=M[Math.floor(i/2)][i%2]);
+}
+
+function readInputs() {
+  function v(id){const n=parseFloat(document.getElementById(id).value);return isNaN(n)?0:n;}
+  M=[[v('m00'),v('m01')],[v('m10'),v('m11')]];
+}
+
+let matrixArrowKey = false;
+['m00','m01','m10','m11'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('keydown', e=>{
+    matrixArrowKey = e.key==='ArrowUp' || e.key==='ArrowDown';
+  });
+  el.addEventListener('input',()=>{
+    if (!matrixArrowKey) setAnimating(false);
+    matrixArrowKey = false;
+    document.getElementById('presets').value=''; readInputs(); render();
+  });
+});
+
+document.querySelectorAll('.mode-btn').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+
+const shapeSel=document.getElementById('shape-sel');
+SHAPES.forEach((sh,i)=>{
+  const opt=document.createElement('option'); opt.value=i; opt.textContent=sh.label; shapeSel.appendChild(opt);
+});
+shapeSel.addEventListener('change',()=>{ shapeIdx=+shapeSel.value; render(); });
+
+const selEl=document.getElementById('presets');
+PRESETS.forEach((p,i)=>{
+  const opt=document.createElement('option'); opt.value=i; opt.textContent=p.name; selEl.appendChild(opt);
+});
+selEl.addEventListener('change',()=>{
+  if (!selEl.value) return;
+  const p=PRESETS[+selEl.value];
+  M=p.M.map(r=>[...r]); pA={...p.A}; pB={...p.B}; setInputs(); render();
+});
+
+document.getElementById('iters-inc').addEventListener('click', () => {
+  if (tog.iters < 8) {
+    tog.iters++;
+    document.getElementById('iters-val').textContent = tog.iters;
+    document.getElementById('iters-dec').disabled = false;
+    document.getElementById('iters-inc').disabled = tog.iters >= 8;
+    renderFg();
+  }
+});
+document.getElementById('iters-dec').addEventListener('click', () => {
+  if (tog.iters > 1) {
+    tog.iters--;
+    document.getElementById('iters-val').textContent = tog.iters;
+    document.getElementById('iters-inc').disabled = false;
+    document.getElementById('iters-dec').disabled = tog.iters <= 1;
+    renderFg();
+  }
+});
+document.getElementById('t-showLine').addEventListener('change',e=>{tog.showLine=e.target.checked;render();});
+document.getElementById('t-arrows'  ).addEventListener('change',e=>{tog.arrows  =e.target.checked;render();});
+document.getElementById('t-fixed'   ).addEventListener('change',e=>{tog.fixed   =e.target.checked;render();});
+document.getElementById('t-eigen'   ).addEventListener('change',e=>{tog.eigen   =e.target.checked;render();});
+document.getElementById('t-surd'    ).addEventListener('change',e=>{tog.surd    =e.target.checked;render();});
+
+new ResizeObserver(() => { updateCanvasSize(); render(); }).observe(svg);
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+(function init(){
+  selEl.value='0';
+  const p0=PRESETS[0];
+  M=p0.M.map(r=>[...r]); pA={...p0.A}; pB={...p0.B};
+
+  // If opened from the Matrix Explorer with ?m=a,b,c,d, load that matrix.
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('m')) {
+    const vals = urlParams.get('m').split(',').map(Number);
+    if (vals.length === 4 && vals.every(v => !isNaN(v))) {
+      M = [[vals[0], vals[1]], [vals[2], vals[3]]];
+      selEl.value = '';
+    }
+  }
+
+  setInputs();
+  shapeIdx = SHAPES.findIndex(s => s.label === 'Letter F');
+  shapePos = {x: -2, y: 2.5};
+  shapeSel.value = shapeIdx;
+  updateCanvasSize();
+  setMode('shape'); // updates buttons and calls render()
+  setAnimating(true);
+})();
+</script>
+</body>
+</html>
