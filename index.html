@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Linear Algebra</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, sans-serif;
+    background: #ffffff;
+    color: #4b5563;
+    line-height: 1.6;
+    padding: 80px 20px;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .container { max-width: 900px; width: 100%; }
+  header { text-align: center; margin-bottom: 80px; }
+  
+  h1 { 
+    font-family: 'Georgia', serif; font-size: 38px; font-weight: 400; 
+    color: #111827; letter-spacing: -0.5px; margin-bottom: 16px; 
+  }
+  .subtitle { color: #6b7280; font-size: 16px; font-weight: 300; }
+  
+  .list-wrapper { display: flex; flex-direction: column; gap: 60px; }
+  
+  .card {
+    display: flex; flex-direction: row;
+    background: #ffffff;
+    border-radius: 8px;
+    text-decoration: none; color: inherit; overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .card:nth-child(even) { flex-direction: row-reverse; }
+  
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  }
+
+  .card-img-wrap {
+    flex: 0 0 400px; position: relative; overflow: hidden;
+    background: #f3f4f6; border-radius: 8px; /* Rounds the image itself */
+  }
+
+  .card-img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .card:hover .card-img { transform: scale(1.05); }
+
+  .card-content { padding: 40px 48px; display: flex; flex-direction: column; justify-content: center; flex: 1; }
+
+  .card-tag {
+    font-size: 11px; font-weight: 600; color: #9ca3af;
+    text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 16px;
+  }
+  
+  .card h2 { 
+    font-family: 'Georgia', serif; font-size: 26px; font-weight: 400; 
+    margin-bottom: 16px; color: #111827; 
+  }
+  .card p { font-size: 15px; color: #4b5563; line-height: 1.7; }
+  
+  .card-footer {
+    margin-top: 32px; font-size: 14px; font-weight: 500; color: #111827;
+    display: flex; align-items: center; gap: 6px;
+    transition: color 0.2s ease;
+  }
+  .card:hover .card-footer { color: #1a56a0; }
+
+  @media (max-width: 768px) {
+    .card, .card:nth-child(even) { flex-direction: column; }
+    .card-img-wrap { flex: none; width: 100%; aspect-ratio: 1 / 1; border-radius: 8px 8px 0 0; }
+    .card-content { padding: 32px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Exploring Matrices</h1>
+    <div class="subtitle">Visual tools for exploring the world of 2x2 matrices.</div>
+  </header>
+
+  <div class="list-wrapper">
+    
+    <!-- Matrix Explorer -->
+    <a href="matrix-explorer.html" class="card">
+      <div class="card-img-wrap">
+        <img src="images/matrix-explorer.png" alt="Matrix Explorer preview" class="card-img" onerror="this.style.display='none'">
+      </div>
+      <div class="card-content">
+        <div class="card-text-inner">
+          <div class="card-tag">Matrix Space</div>
+          <h2>Matrix Space Explorer</h2>
+		  <p>Explore the relationships between over 2000 integer matrices. Sort them by properties including trace, determinant, condition number, and many more, to uncover hidden geometric patterns.</p>
+          <div class="card-footer">Launch Explorer &rarr;</div>
+        </div>
+      </div>
+    </a>
+
+    <!-- Transformation Explorer -->
+    <a href="matrix-transformation-explorer.html" class="card">
+      <div class="card-img-wrap">
+        <img src="images/matrix-transformation-explorer.png" alt="Transformation Explorer preview" class="card-img" onerror="this.style.display='none'">
+      </div>
+      <div class="card-content">
+        <div class="card-text-inner">
+          <div class="card-tag">Linear Transformations</div>
+          <h2>Transformation Explorer</h2>
+          <p>Visualise how a 2×2 matrix transforms 2D space. Drag points, lines, and shapes to discover how they are transformed, either once or multiple times. Find invariant lines, and explore how transformations change length and area.</p>
+          <div class="card-footer">Launch Explorer &rarr;</div>
+        </div>
+      </div>
+    </a>
+
+    <!-- Dynamical Systems -->
+    <a href="matrix-dynamical-systems.html" class="card">
+      <div class="card-img-wrap">
+        <img src="images/matrix-dynamical-systems.png" alt="Dynamical Systems preview" class="card-img" onerror="this.style.display='none'">
+      </div>
+      <div class="card-content">
+        <div class="card-text-inner">
+          <div class="card-tag">Linear Dynamical Systems</div>
+          <h2>Sources, Sinks, and Saddles</h2>
+          <p>2x2 matrices can be used to define a dynamical system (equivalent to a pair of linear Coupled Differential Equations). Explore the different types of behaviour by seeing trails or animated movements.</p>
+          <div class="card-footer">Launch Explorer &rarr;</div>
+        </div>
+      </div>
+    </a>
+
+  </div>
+</div>
+
+</body>
+</html>
