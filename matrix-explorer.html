@@ -220,6 +220,13 @@ details.side-section[open] > summary { margin-bottom: 10px; }
   border: none; border-radius: 3px; cursor: pointer;
 }
 #sel-explore:hover { background: #0d3a70; }
+#sel-dynamics {
+  width: 100%; padding: 6px 10px; font-size: 0.78em;
+  font-family: 'Courier New', monospace; text-align: left;
+  background: #1a6b4a; color: #fff;
+  border: none; border-radius: 3px; cursor: pointer;
+}
+#sel-dynamics:hover { background: #0d4030; }
 
 /* ── Modal ────────────────────────────────────────────── */
 #modal-overlay {
@@ -315,7 +322,10 @@ details.side-section[open] > summary { margin-bottom: 10px; }
         <canvas id="sel-tfm-cv"></canvas>
       </div>
       <div id="sel-props"></div>
-      <button id="sel-explore">Open Transformation Explorer &#x2197;</button>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <button id="sel-explore">Open Transformation Explorer &#x2197;</button>
+        <button id="sel-dynamics">Open Dynamical Systems Explorer &#x2197;</button>
+      </div>
     </div>
   </div>
 
@@ -428,6 +438,7 @@ const P = {
   symmetric:   { label: 'Symmetric?',                        type: 'cat',  cats: ['no','yes'] },
   orthogonal:  { label: 'Orthogonal?',                       type: 'cat',  cats: ['no','yes'] },
   nilp_idem:   { label: 'Special matrix type',               type: 'cat',  cats: ['neither','idempotent','nilpotent','involution'] },
+  dyn_type:    { label: 'Dynamical system type',             type: 'cat',  cats: ['saddle','stable_node','unstable_node','stable_spiral','unstable_spiral','centre','stable_repeated','unstable_repeated','singular'] },
 };
 
 const AXIS_GROUPS = [
@@ -435,14 +446,14 @@ const AXIS_GROUPS = [
   { label: 'Scale and geometry', keys: ['det','orient','sigma1','sigma2','inv_cond'] },
   { label: 'Eigenvalues',        keys: ['trace','lmin','lmax','im_lam','ev_type','ev_arg','spec_rad'] },
   { label: 'Decomposition',      keys: ['spin','shear','diff_stretch','polar_angle'] },
-  { label: 'Structure',          keys: ['rank','frob_sq','symmetric','orthogonal','nilp_idem'] },
+  { label: 'Structure',          keys: ['rank','frob_sq','symmetric','orthogonal','nilp_idem','dyn_type'] },
 ];
 const AXIS_KEYS = AXIS_GROUPS.flatMap(g => g.keys);
 
 const COLOR_GROUPS = [
   { label: 'Special',     keys: ['no_color','random_color'] },
   { label: 'By value',    keys: ['det','trace','spin','shear','diff_stretch','polar_angle','frob_sq','sigma1','sigma2','inv_cond','spec_rad','im_lam','ev_arg'] },
-  { label: 'By category', keys: ['orient','ev_type','rank','symmetric','orthogonal','nilp_idem'] },
+  { label: 'By category', keys: ['orient','ev_type','rank','symmetric','orthogonal','nilp_idem','dyn_type'] },
 ];
 const COLOR_KEYS = COLOR_GROUPS.flatMap(g => g.keys);
 
@@ -456,6 +467,17 @@ const SC = {
   symmetric: { yes:'#0d7a70', no:'#b5295a' },
   orthogonal:{ yes:'#1e7e44', no:'#adb4be' },
   nilp_idem: { neither:'#adb4be', idempotent:'#1a6ab5', nilpotent:'#c0392b', involution:'#1a8050' },
+  dyn_type:  {
+    saddle:            '#b5860d',   // amber       — mixed stability
+    stable_node:       '#1a6b2e',   // forest green
+    unstable_node:     '#b02020',   // dark red
+    stable_spiral:     '#1a5276',   // dark blue
+    unstable_spiral:   '#d35400',   // dark orange
+    centre:            '#6c3483',   // purple      — neutral stability
+    stable_repeated:   '#0e6655',   // dark teal
+    unstable_repeated: '#943126',   // maroon
+    singular:          '#8e9aaa',   // cool grey
+  },
   rank:      { '0':'#adb4be', '1':'#c47d00', '2':'#1a6ab5' },
 };
 
@@ -579,7 +601,7 @@ const SHORT_LABEL = {
   spin: 'spin', shear: 'shear', diff_stretch: 'diff. stretch', polar_angle: 'polar (\u00b0)',
   lmin: '\u03bb_min', lmax: '\u03bb_max', im_lam: '|Im(\u03bb)|', ev_type: 'eigenvalue type', ev_arg: 'arg(\u03bb) (\u00b0)',
   sigma1: '\u03c3\u2081', sigma2: '\u03c3\u2082', spec_rad: '\u03c1', inv_cond: '\u03c3\u2082/\u03c3\u2081',
-  orient: 'orientation', symmetric: 'symmetric?', orthogonal: 'orthogonal?', nilp_idem: 'special type',
+  orient: 'orientation', symmetric: 'symmetric?', orthogonal: 'orthogonal?', nilp_idem: 'special type', dyn_type: 'dynamics',
 };
 
 // Tooltip text for each property row in the selected matrix panel.
@@ -606,6 +628,7 @@ const PROP_TOOLTIP = {
   symmetric:    'b = c: the matrix equals its own transpose. Symmetric matrices always have real eigenvalues.',
   orthogonal:   'M\u1d40M = I: preserves all distances and angles. Equivalent to det = \u00b11 and \u03c3\u2081 = \u03c3\u2082 = 1.',
   nilp_idem:    'idempotent: M\u00b2 = M (projection, applying twice = once). nilpotent: M\u00b2 = 0 (two applications destroy everything). involution: M\u00b2 = I (its own inverse; integer involutions are almost all reflections).',
+  dyn_type:     'How the linear system \u1e8b = Mx behaves near the origin. Determined by the sign of det, the discriminant tr\u00b2 \u2212 4\u00b7det, and the sign of trace. Stable types contract toward the origin; unstable types expand away from it.',
 };
 
 // Format a property value for display.
@@ -686,6 +709,24 @@ function calcProps(a, b, c, d) {
   const nilp_idem  = nilpotent ? 'nilpotent' : idempotent ? 'idempotent'
                    : involution ? 'involution' : 'neither';
 
+  // Dynamical system type: how does ẋ = Mx behave near the origin?
+  // disc = tr² − 4·det is always integer for integer matrices, so exact comparisons work.
+  // Detection order: degenerate first (det=0), then saddle (det<0), then by disc sign.
+  let dyn_type;
+  if (det === 0) {
+    dyn_type = 'singular';
+  } else if (det < 0) {
+    dyn_type = 'saddle';
+  } else if (disc < 0) {
+    dyn_type = tr < 0 ? 'stable_spiral' : tr > 0 ? 'unstable_spiral' : 'centre';
+  } else if (disc === 0) {
+    // Repeated eigenvalue tr/2 ≠ 0 (if tr=0, det=tr²/4=0, already handled above)
+    dyn_type = tr < 0 ? 'stable_repeated' : 'unstable_repeated';
+  } else {
+    // disc > 0, det > 0 → real distinct eigenvalues, same sign (node)
+    dyn_type = tr < 0 ? 'stable_node' : 'unstable_node';
+  }
+
   return {
     det, trace: tr,
     spin: (c - b) / 2,
@@ -704,7 +745,7 @@ function calcProps(a, b, c, d) {
     // Inverse condition number σ₂/σ₁: 1 = conformal (circle→circle), 0 = singular.
     // Zero matrix (sigma1=0) also returns 0; both degenerate cases share the floor.
     inv_cond: sigma1 > 0 ? sigma2 / sigma1 : 0,
-    orthogonal, nilp_idem,
+    orthogonal, nilp_idem, dyn_type,
     orient:    det > 0 ? 'preserving' : det < 0 ? 'reversing' : 'singular',
     symmetric: b === c ? 'yes' : 'no',
   };
@@ -823,6 +864,14 @@ const PRESET_GROUPS = [
       text: `Three families defined by squaring. ${W('Idempotents',WP('Idempotent_matrix'))} M\u00b2 = M (blue): applying twice equals applying once, so they project onto a subspace. ${W('Nilpotents',WP('Nilpotent_matrix'))} M\u00b2 = 0 (red): two applications destroy everything. ${W('Involutions',WP('Involution_(mathematics)'))} M\u00b2 = I (green): the matrix is its own inverse. Almost all integer involutions are reflections, clustering at trace = 0, det = \u22121.` },
 
   ]},
+
+  { label: 'Dynamics', presets: [
+
+    { label: 'Dynamical system type',
+      xk: 'trace', yk: 'det', ck: 'dyn_type',
+      text: `The matrix M defines a ${W('linear dynamical system','https://en.wikipedia.org/wiki/Linear_dynamical_system')} \u1e8b\u0307 = Mx. The long-term behaviour near the origin \u2014 saddle, node, spiral, or centre \u2014 is completely determined by the ${W('eigenvalues',WP('Eigenvalues_and_eigenvectors'))} and ${W('can be read from the trace\u2013determinant plane','https://en.wikipedia.org/wiki/Autonomous_system_(mathematics)')}.` },
+
+  ]},
 ];
 
 const PRESETS = [{ label: '\u2014 choose a view \u2014', xk: null, yk: null, ck: null, text: '' }];
@@ -851,7 +900,7 @@ const PARAMS = {
     value: 3, min: 1, max: 12, step: 0.5,
     label:   'Dot radius (px)',
     tooltip: 'Visual size of each dot. Larger dots are easier to hover but obscure dense regions.',
-    recompute: false,
+    recompute: true,
   },
   overlapFactor: {
     value: 2.3, min: 1.0, max: 5.0, step: 0.1,
@@ -1845,6 +1894,10 @@ document.getElementById('sel-explore').addEventListener('click', e => {
   const mat = e.currentTarget.dataset.matrix;
   if (mat) window.open(`matrix-transformation-explorer.html?m=${mat}`, '_blank');
 });
+document.getElementById('sel-dynamics').addEventListener('click', e => {
+  const mat = e.currentTarget.dataset.matrix;
+  if (mat) window.open(`https://joningram.github.io/exploring-matrices/matrix-dynamical-systems.html?m=${mat}`, '_blank');
+});
 
 const modalMatCv = document.getElementById('modal-mat-cv');
 drawMatrixPanel(modalMatCv.getContext('2d'), 0, 0, 90, 72, 1, -2, 0, 1);
@@ -2696,10 +2749,44 @@ function overlayEvArgSpecRad(xk, yk) {
   ctx.restore();
 }
 
+// ── Dynamical system type: upright parabola + det=0 line ─────────────────────
+// X=trace, Y=det. Classical phase-portrait classification diagram orientation.
+// Parabola det = tr²/4 (upright): above it eigenvalues are complex (spirals/centre),
+// below it they are real (nodes). Horizontal at det=0: saddle below, nodes/spirals above.
+function overlayTraceDet(xk, yk) {
+  const { min: xMin, max: xMax } = viewportLimits(xk, true);
+  const { min: yMin, max: yMax } = viewportLimits(yk, false);
+  const STEPS = 200;
+  ctx.save();
+  ctx.strokeStyle = '#8860c8';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.setLineDash([5, 4]);
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  for (let i = 0; i <= STEPS; i++) {
+    const trVal = xMin + (i / STEPS) * (xMax - xMin);
+    const sx = dataToScreenX(trVal, xk);
+    const sy = dataToScreenY(trVal * trVal / 4, yk);
+    i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+  }
+  ctx.stroke();
+  // det = 0: boundary between saddles (below) and nodes/spirals (above)
+  if (yMin <= 0 && yMax >= 0) {
+    ctx.strokeStyle = '#b09060';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 5]);
+    ctx.globalAlpha = 0.4;
+    overlayLine(xMin, 0, xMax, 0, xk, yk);
+  }
+  ctx.restore();
+}
+
 // Dispatch table: '{xk},{yk}' → overlay function.
 // drawAll() calls drawOverlays(xk, yk) inside the plot clip, before dots.
 const OVERLAY_FNS = {
   'det,trace':            overlayDetTrace,
+  'trace,det':            overlayTraceDet,
   'lmin,lmax':            overlayLminLmax,
   'sigma1,sigma2':        overlaySigmas,
   'polar_angle,det':      overlayPolarDet,
@@ -2750,7 +2837,7 @@ const SEL_PROP_ORDER = [
   'ev_type', 'lmin', 'lmax', 'im_lam', 'ev_arg',
   'sigma1', 'sigma2', 'inv_cond', 'spec_rad', 'frob_sq',
   'spin', 'shear', 'diff_stretch', 'polar_angle',
-  'symmetric', 'orthogonal', 'nilp_idem',
+  'symmetric', 'orthogonal', 'nilp_idem', 'dyn_type',
 ];
 
 function buildSelectedPanel(m) {
@@ -2784,9 +2871,10 @@ function buildSelectedPanel(m) {
      </div>`;
   }).join('');
 
-  // Store matrix on explore button so the listener can read it
-  document.getElementById('sel-explore').dataset.matrix =
-    `${m.a},${m.b},${m.c},${m.d}`;
+  // Store matrix on explore buttons so their listeners can read it
+  const matStr = `${m.a},${m.b},${m.c},${m.d}`;
+  document.getElementById('sel-explore').dataset.matrix  = matStr;
+  document.getElementById('sel-dynamics').dataset.matrix = matStr;
 }
 
 function clearSelectedPanel() {
