@@ -21,9 +21,10 @@ body{
   min-height:100vh;overflow-y:auto;
 }
 #sidebar{display:contents;}
-#sec-header  {order:1;}  #sec-matrix  {order:2;}  #sec-td     {order:3;}
-#sec-mode    {order:4;}  #sec-display {order:5;}   #cvs-wrap   {order:6;}
-#sec-analysis{order:7;}  #sec-help    {order:8;}
+#sec-header  {order:1;}  #sec-matrix  {order:2;}  #sec-mode   {order:3;}
+#cvs-wrap    {order:4;}
+#sec-system-analysis{order:5;}  #sec-point-analysis{order:6;}
+#sec-display {order:7;}  #sec-help{order:8;}
 
 .ctrl{background:#faf8f4;padding:14px 16px;border-bottom:1px solid #e8e2d8;}
 .ctrl>*+*{margin-top:9px;}
@@ -100,6 +101,18 @@ details.ctrl>summary::-webkit-details-marker{display:none;}
 details.ctrl>summary::before{content:'▸';font-size:10px;color:#c0a878;flex-shrink:0;}
 details.ctrl[open]>summary::before{content:'▾';}
 details.ctrl[open]>summary{margin-bottom:9px;}
+/* Nested subsections inside a .ctrl (e.g. the three System-analysis panes).
+   Lighter weight than the top-level summary so the hierarchy reads clearly. */
+details.subsec{margin:0 0 8px;}
+details.subsec>summary{
+  font-family:system-ui,sans-serif;font-size:9px;font-weight:600;color:#b0a088;
+  letter-spacing:.05em;cursor:pointer;list-style:none;
+  display:flex;align-items:center;gap:4px;user-select:none;padding:1px 0;
+}
+details.subsec>summary::-webkit-details-marker{display:none;}
+details.subsec>summary::before{content:'▸';font-size:9px;color:#c8b290;flex-shrink:0;}
+details.subsec[open]>summary::before{content:'▾';}
+details.subsec[open]>summary{margin-bottom:6px;}
 /* Mode buttons */
 .mode-sel{display:flex;gap:5px;}
 .mode-btn{
@@ -129,36 +142,78 @@ details.ctrl[open]>summary{margin-bottom:9px;}
 .saddle   {color:#884499;font-weight:600;}
 .degen    {color:#888870;font-weight:600;}
 /* Equation sidebar section */
-/* (equation system typesetting removed — see CDE input view) */
+/* (equation system typesetting removed - see CDE input view) */
 /* Help */
 #help-text{font-family:system-ui,sans-serif;font-size:11.5px;line-height:1.6;color:#6a5a40;}
 /* TD panel */
-#sec-td canvas{display:block;border-radius:3px;border:1px solid #e0dbd0;cursor:crosshair;}
+#sec-system-analysis canvas#td-cvs{display:block;border-radius:3px;border:1px solid #e0dbd0;cursor:crosshair;}
 #td-hint{font-family:system-ui,sans-serif;font-size:10px;color:#a09070;}
+/* Eigenvalue values shown as text below the Argand plane. */
+.eigen-text{
+  font-family:'Courier New',monospace;font-size:11px;color:#5a4a36;
+  margin-top:6px;text-align:center;
+}
+/* Custom tooltip (data-tip) - richer than native title, with matrix layout. */
+#custom-tip{
+  position:fixed;z-index:1000;max-width:260px;
+  background:#2a2018;color:#f0e8dc;border:1px solid #5a4a36;border-radius:6px;
+  padding:9px 11px;font-family:system-ui,sans-serif;font-size:11px;line-height:1.5;
+  box-shadow:0 6px 24px rgba(0,0,0,.28);pointer-events:none;
+}
+#custom-tip b{color:#fff;font-size:11.5px;}
+#custom-tip .tip-p{margin-top:5px;color:#d8cdbd;}
+#custom-tip .tip-mat{display:flex;align-items:center;justify-content:center;gap:3px;margin:7px 0;}
+#custom-tip .tip-coef{font-style:italic;font-size:13px;color:#e8c98a;margin-right:2px;}
+#custom-tip .tip-brk{font-size:30px;color:#bfae90;font-weight:300;line-height:0.8;}
+#custom-tip .tip-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px 8px;}
+#custom-tip .tip-cell{font-family:'Courier New',monospace;font-size:12px;text-align:center;min-width:18px;color:#fff;}
+/* The textual classification + behaviour, framed as the "conclusion" of the
+   system analysis so it reads as the takeaway. Sits at the top now (shown by
+   default; the planes/sliders are collapsed subsections below it). */
+.analysis-conclusion{
+  margin-top:10px;padding:9px 11px;
+  background:#faf7f1;border:1px solid #e8e2d8;border-left:3px solid #c8a060;
+  border-radius:4px;
+}
+#analysis-type{font-family:system-ui,sans-serif;font-size:12px;font-weight:700;color:#3a2e1e;margin-bottom:4px;}
+#analysis-text{font-family:system-ui,sans-serif;font-size:11.5px;line-height:1.6;color:#5a4a36;}
 /* Canvas area */
 #cvs-wrap{
   display:flex;align-items:center;justify-content:center;
   padding:12px 8px;background:#f0ece4;position:relative;
 }
-#cvs-box{
-  position:relative;
+/* #panel-area is the sized region; on mobile it's a square-ish block, on
+   desktop (media query below) it fills the available space. Panels flex
+   inside it. Layout classes set the flex direction for the 'both' case. */
+#panel-area{
+  position:relative;display:flex;gap:10px;
   width:min(calc(100vw - 16px),75vh);height:min(calc(100vw - 16px),75vh);
+}
+#panel-area.layout-single{flex-direction:column;}      /* one panel, fills area */
+#panel-area.layout-both  {flex-direction:column;}      /* both: column on mobile */
+.view-panel{position:relative;flex:1 1 0;min-width:0;min-height:0;display:flex;}
+.cvs-box{
+  position:relative;flex:1 1 0;min-width:0;min-height:0;
   background:#fff;border-radius:8px;overflow:hidden;
   box-shadow:0 4px 24px rgba(60,40,0,.12),0 1px 4px rgba(60,40,0,.08);
   user-select:none;touch-action:none;
 }
-#cvs-bg,#cvs-fg{position:absolute;top:0;left:0;width:100%;height:100%;}
+#cvs-bg,#cvs-fg,#time-cvs{position:absolute;top:0;left:0;width:100%;height:100%;}
 #cvs-bg{pointer-events:none;will-change:transform;}
 #cvs-fg{cursor:crosshair;}
-#zoom-btns{position:absolute;top:10px;right:10px;display:flex;gap:4px;z-index:10;}
-#zoom-btns button{
-  width:24px;height:24px;border:1.5px solid #d8d0c4;border-radius:4px;
-  background:rgba(250,248,244,.88);font-size:15px;font-family:system-ui,sans-serif;
-  font-weight:500;color:#3a2e1e;cursor:pointer;padding:0;line-height:1;
-  display:flex;align-items:center;justify-content:center;
-  transition:background .1s,border-color .1s;
+#time-cvs{cursor:grab;}
+/* Overlaid controls, top-right of the whole canvas area */
+#overlay-tr{position:absolute;top:10px;right:10px;display:flex;gap:6px;align-items:flex-start;z-index:10;}
+#view-btns{display:flex;border:1.5px solid #d8d0c4;border-radius:4px;overflow:hidden;}
+#view-btns button{
+  border:none;border-left:1.5px solid #d8d0c4;
+  padding:0 8px;height:24px;font-size:10.5px;font-family:system-ui,sans-serif;
+  font-weight:600;background:rgba(250,248,244,.88);color:#6a5a40;cursor:pointer;
+  transition:background .1s,color .1s;
 }
-#zoom-btns button:hover{background:#faf8f4;border-color:#b0a090;}
+#view-btns button:first-child{border-left:none;}
+#view-btns button.active{background:#3a2e1e;color:#fff;}
+#view-btns button:not(.active):hover{background:#faf8f4;}
 #clear-wrap{position:absolute;bottom:10px;right:10px;z-index:10;}
 #clear-btn{
   padding:6px 12px;border:1.5px solid #d8d0c4;border-radius:5px;
@@ -167,22 +222,16 @@ details.ctrl[open]>summary{margin-bottom:9px;}
   transition:background .1s,border-color .1s;
 }
 #clear-btn:hover{background:#faf8f4;border-color:#b0a090;}
-/* Hover tooltip */
-#sol-tooltip{
-  position:absolute;z-index:50;pointer-events:none;
-  background:rgba(252,250,246,.97);border:1.5px solid #d0c8bc;border-radius:8px;
-  padding:11px 14px;max-width:min(380px,calc(100vw - 24px));
-  box-shadow:0 4px 18px rgba(60,40,0,.16),0 1px 4px rgba(60,40,0,.08);
-  display:none;
+/* Selected-point block (inside Analysis panel) */
+.sel-seed{
+  font-family:system-ui,sans-serif;font-size:11px;font-weight:700;
+  color:#6a5a40;margin-bottom:6px;
 }
-.tip-seed{
-  font-family:system-ui,sans-serif;font-size:10px;font-weight:700;
-  color:#a09070;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;
-}
-.tip-math{font-size:12px;line-height:1.4;}
-.tip-behav{
+.sel-math{font-size:12px;line-height:1.4;overflow-x:auto;}
+.sel-sublabel{font-family:system-ui,sans-serif;font-size:10px;font-weight:600;color:#a09070;margin-top:6px;}
+.sel-behav{
   font-family:system-ui,sans-serif;font-size:10.5px;color:#6a5a40;font-style:italic;
-  border-top:1px solid #e8e2d8;margin-top:7px;padding-top:6px;
+  margin-top:7px;
 }
 @media(min-width:640px){
   body{flex-direction:row;height:100vh;min-height:unset;overflow:hidden;}
@@ -203,13 +252,20 @@ details.ctrl[open]>summary{margin-bottom:9px;}
     transition:background .1s,border-color .1s;user-select:none;
   }
   #sidebar-toggle:hover{background:#f0ece4;border-color:#b0a090;}
-  #sec-header,#sec-matrix,#sec-td,#sec-mode,#sec-display,
-  #sec-analysis,#sec-help,#cvs-wrap{order:unset;}
+  #sec-header{order:1;} #sec-matrix{order:2;} #sec-mode{order:3;}
+  #sec-system-analysis{order:4;} #sec-point-analysis{order:5;}
+  #sec-display{order:6;} #sec-help{order:7;}
+  #cvs-wrap{order:unset;}
   #sec-help{margin-top:auto;}
   #cvs-wrap{flex:1;padding:0;position:relative;}
-  #cvs-box{position:absolute;inset:0;width:auto;height:auto;border-radius:0;box-shadow:none;}
+  /* Desktop: the panel area fills the whole canvas region. */
+  #panel-area{position:absolute;inset:0;width:auto;height:auto;gap:2px;}
+  .cvs-box{border-radius:0;box-shadow:none;}
+  /* Landscape default for 'both': side by side. (A future option could swap
+     this to column; the layout-* class is the single point of control.) */
+  #panel-area.layout-both{flex-direction:row;}
 }
-/* Re-open button on canvas edge — only shown when sidebar is hidden */
+/* Re-open button on canvas edge - only shown when sidebar is hidden */
 #sidebar-reopen{
   display:none;position:absolute;top:10px;left:10px;z-index:20;
   width:24px;height:24px;border:1.5px solid #d8d0c4;border-radius:4px;
@@ -219,11 +275,6 @@ details.ctrl[open]>summary{margin-bottom:9px;}
 }
 #sidebar-reopen:hover{background:#f0ece4;border-color:#b0a090;}
 /* Fine tuning subheader inside TD section */
-.fine-tune-hdr{
-  font-family:system-ui,sans-serif;font-size:9.5px;font-weight:700;
-  color:#a09070;text-transform:uppercase;letter-spacing:.08em;
-  margin-top:10px;cursor:help;
-}
 .fine-params{display:flex;flex-direction:column;gap:5px;margin-top:4px;}
 .fine-params .param-lbl{width:auto;min-width:0;padding-right:2px;}
 .fine-params input[type=range]{min-width:0;}
@@ -234,7 +285,7 @@ details.ctrl[open]>summary{margin-bottom:9px;}
 
   <div class="ctrl" id="sec-header">
     <h1>Linear Dynamical Systems</h1>
-    <div class="app-sub">Explore the behaviour of linear dynamical systems</div>
+    <div class="app-sub">Explore what happens when velocity is determined by a matrix.</div>
     <button id="sidebar-toggle" title="Hide panel">◀</button>
   </div>
 
@@ -275,26 +326,8 @@ details.ctrl[open]>summary{margin-bottom:9px;}
         <span class="cde-var">&thinsp;y</span>
       </div>
     </div>
-    <select id="presets"><option value="">— presets —</option></select>
+    <select id="presets"><option value="">Presets...</option></select>
   </div>
-
-  <details class="ctrl" id="sec-td">
-    <summary>Trace–Determinant Plane</summary>
-    <canvas id="td-cvs" width="212" height="138" title="Drag to move through parameter space. Each region corresponds to a different type of behaviour."></canvas>
-    <div class="fine-tune-hdr" title="These sliders alter the system's behaviour without changing the trace or determinant">Fine tuning</div>
-    <div class="fine-params">
-      <div class="param-row">
-        <span class="param-lbl">Tilt</span>
-        <input type="range" id="sl-s" min="-3" max="3" step="0.1" value="0">
-        <span class="param-val" id="sl-s-val">0.00</span>
-      </div>
-      <div class="param-row">
-        <span class="param-lbl">Rotation</span>
-        <input type="range" id="sl-rho" min="-3" max="3" step="0.1" value="-2">
-        <span class="param-val" id="sl-rho-val">-2.00</span>
-      </div>
-    </div>
-  </details>
 
   <div class="ctrl" id="sec-mode">
     <div class="sec-title">Mode</div>
@@ -321,22 +354,71 @@ details.ctrl[open]>summary{margin-bottom:9px;}
     <label class="tog" title="Green dashed: dx/dt = 0 along this line. Purple dashed: dy/dt = 0 along this line. Both always pass through the origin.">
       <input type="checkbox" id="t-null">
       <span class="swatch-half"><span style="background:#2c8c2c"></span><span style="background:#8c2c8c"></span></span>Nullclines</label>
-    <label class="tog" id="row-bwd" title="Also trace each trajectory backwards in time from the starting point">
+    <label class="tog" title="Draw thicker, more visible trajectory lines">
+      <input type="checkbox" id="t-bold">
+      <span class="swatch" style="background:#1a2a4a"></span>Bold lines</label>
+    <label class="tog" id="row-bwd" title="Trace each trajectory backwards in time (t < 0). In the time view, also shows the curves for negative t.">
       <input type="checkbox" id="t-bwd">
-      <span class="swatch" style="background:#1a2a4a;opacity:.38"></span>Trace backwards in time</label>
-    <label class="tog" title="Show trajectories from the four axis starting points (±k, 0) and (0, ±k)">
-      <input type="checkbox" id="t-axis">
-      <span class="swatch" style="background:#4466aa;opacity:.6"></span>Axis starting points</label>
-    <div class="axis-sub" id="axis-opts" style="display:none">
-      <div style="font-family:system-ui,sans-serif;font-size:10px;color:#a09070;">Starting points at (±1, 0) and (0, ±1)</div>
+      <span class="swatch" style="background:#1a2a4a;opacity:.38"></span>Backwards in time (t &lt; 0)</label>
+  </details>
+
+  <details class="ctrl" id="sec-system-analysis" open>
+    <summary>System analysis</summary>
+
+    <!-- Subsections (planes + fine tuning) start collapsed, so by default the
+         user sees just the classification text at the bottom. The conclusion is
+         placed BELOW the subsections deliberately: its length changes as you
+         drag, and keeping it last means the planes above it never jerk.
+         Two equivalent pictures: TD plane (where (τ,δ) sits among the behaviour
+         regions) and Argand plane (eigenvalues; τ = λ₁+λ₂, δ = λ₁λ₂). -->
+    <details class="subsec">
+      <summary>Trace–determinant plane</summary>
+      <canvas id="td-cvs" width="212" height="138" title="Drag the dot to move through parameter space. Each region is a different type of behaviour. Saddle below the axis; spiral/centre inside the parabola; nodes outside it."></canvas>
+    </details>
+
+    <details class="subsec">
+      <summary>Eigenvalues (complex plane)</summary>
+      <canvas id="argand-cvs" width="212" height="118" title="Drag the eigenvalues to change the system. On the real axis they split into two; overlap them, then drag up, to return to a complex pair. Left → decay, right → growth, off the horizontal axis → rotation." style="display:block;border-radius:3px;border:1px solid #e0dbd0;cursor:crosshair;"></canvas>
+      <div id="eigen-text" class="eigen-text"></div>
+    </details>
+
+    <!-- Reshape the matrix while holding the eigenvalues fixed (see
+         matFromTauDeltaSRho). Same dynamics type, different eigenvector geometry. -->
+    <details class="subsec" id="subsec-tuning">
+      <summary data-tip="tuning-summary">Fine tuning</summary>
+      <div class="fine-params">
+      <div class="param-row">
+        <span class="param-lbl" data-tip="tuning-s">Diagonal split (s)</span>
+        <input type="range" id="sl-s" min="-3" max="3" step="0.1" value="0">
+        <span class="param-val" id="sl-s-val">0.00</span>
+      </div>
+      <div class="param-row">
+        <span class="param-lbl" data-tip="tuning-rho">Rotation (ρ)</span>
+        <input type="range" id="sl-rho" min="-3" max="3" step="0.1" value="-2">
+        <span class="param-val" id="sl-rho-val">-2.00</span>
+      </div>
+      </div>
+    </details>
+
+    <div class="analysis-conclusion">
+      <div id="analysis-type"></div>
+      <div id="analysis-text"></div>
     </div>
   </details>
 
-  <details class="ctrl" id="sec-analysis">
-    <summary>Analysis</summary>
-    <canvas id="argand-cvs" width="212" height="118" style="display:block;border-radius:3px;border:1px solid #e0dbd0;margin-bottom:8px;"></canvas>
-    <div id="analysis-type" style="font-family:system-ui,sans-serif;font-size:11.5px;font-weight:600;margin-bottom:6px;"></div>
-    <div id="analysis-text" style="font-family:system-ui,sans-serif;font-size:11.5px;line-height:1.65;color:#3a2e1e;"></div>
+  <details class="ctrl" id="sec-point-analysis">
+    <summary>Point analysis</summary>
+    <!-- Solution for one selected starting point; populated by selectBall(),
+         hidden (placeholder shown) when nothing is selected. -->
+    <div id="sel-empty" style="font-family:system-ui,sans-serif;font-size:11px;color:#a09070;font-style:italic;">
+      Click a starting point to see its exact solution x(t), y(t).
+    </div>
+    <div id="sel-point" style="display:none;">
+      <div class="sel-seed" id="sel-seed"></div>
+      <div class="sel-math" id="sel-math"></div>
+      <div class="sel-math" id="sel-cartesian"></div>
+      <div class="sel-behav" id="sel-behav"></div>
+    </div>
   </details>
 
 
@@ -350,39 +432,104 @@ details.ctrl[open]>summary{margin-bottom:9px;}
 <div id="cvs-wrap">
   <!-- Re-open button: only visible when sidebar is hidden -->
   <button id="sidebar-reopen" title="Show panel" onclick="document.getElementById('sidebar-toggle').click()">▶</button>
-  <div id="cvs-box">
-    <canvas id="cvs-bg"></canvas>
-    <canvas id="cvs-fg"></canvas>
-    <div id="zoom-btns">
-      <button id="zoom-in">+</button>
-      <button id="zoom-out">−</button>
+  <!-- Panel area. #panel-area is a flexbox; each .view-panel is one display
+       (phase / time). viewMode decides which panels are shown and, via the
+       .layout-* class on #panel-area, how they share the space. The phase
+       panel owns the two stacked canvases (bg static + fg dynamic); the time
+       panel owns a single canvas. See the PANELS section in the script. -->
+  <div id="panel-area" class="layout-single">
+    <div class="view-panel" id="panel-phase">
+      <div class="cvs-box" id="cvs-box">
+        <canvas id="cvs-bg"></canvas>
+        <canvas id="cvs-fg"></canvas>
+      </div>
     </div>
-    <div id="clear-wrap">
-      <button id="clear-btn">Clear starting points</button>
+    <div class="view-panel" id="panel-time" style="display:none">
+      <div class="cvs-box" id="time-box">
+        <canvas id="time-cvs" title="Drag plot to pan · scroll to zoom (Shift = time only, Alt = values only) · drag an axis to stretch it · drag the x₀/y₀ dots to set the start point"></canvas>
+      </div>
     </div>
   </div>
-  <div id="sol-tooltip">
-    <div class="tip-seed"></div>
-    <div class="tip-math"></div>
-    <div class="tip-behav"></div>
+  <!-- Controls overlaid top-right: view switch + zoom. -->
+  <div id="overlay-tr">
+    <div id="view-btns" title="Choose which view(s) to show">
+      <button class="view-btn active" data-view="phase" title="Phase plane">Phase</button>
+      <button class="view-btn"        data-view="time"  title="x and y against time">Time</button>
+      <button class="view-btn"        data-view="both"  title="Both views">Both</button>
+    </div>
+  </div>
+  <div id="clear-wrap">
+    <button id="clear-btn">Clear starting points</button>
   </div>
 </div>
 
 <script>
 'use strict';
 
+// ════════════════════════════════════════════════════════════════════════
+// LINEAR DYNAMICAL SYSTEMS - 2x2 phase-plane explorer
+//
+// Visualises x' = Mx for a user-chosen 2x2 matrix M: direction field,
+// eigenvector lines, nullclines, trajectories, and the (tau, delta) plane.
+//
+// ARCHITECTURE / things to know before editing:
+//
+//  • PANELS & VIEWS (the display abstraction):
+//      A "panel" owns its canvas(es) and implements resize/renderStatic/
+//      renderAnim. viewMode ('phase'|'time'|'both') selects which panels are in
+//      activePanels. Three dispatchers fan out to them: renderStatic() (static
+//      layer), renderActiveAnim() (moving layer), resizePanels(). Call these -
+//      never an individual panel's draw fn - so all active views stay in sync.
+//      Adding a view = add a panel object + a case in setViewMode. See PANELS.
+//
+//  • The PHASE panel uses two stacked canvases sharing one coord system:
+//      cvs-bg  - static layer: grid, axes, field, eigenvectors, and in
+//                'trails' mode the full trajectories (renderBg).
+//      cvs-fg  - dynamic layer: 'animated' mode's moving heads + sparks
+//                (renderFgAnimated); cleared in 'trails' mode.
+//    W/H/SC and wx/wy/cw/ch are the PHASE panel's coords; the time panel has
+//    its own (tWindow/vHalf/tPan/vCenter). Both panels are fully implemented.
+//
+//  • Two MODES (animation strategy) are ORTHOGONAL to viewMode (which views):
+//      'animated' - points move along trajectories in real time.
+//      'trails'   - full forward/back trajectories drawn statically.
+//    A panel's renderAnim() decides what "time advanced" means for that view.
+//
+//  • ANALYTIC vs NUMERIC - deliberate split:
+//      User balls + axis balls are driven by the CLOSED FORM (exactSolution →
+//      evalSolution / analyticTrail). This keeps centres exactly closed and
+//      makes backward time free. The ambient background "sparks" still use RK4
+//      (rk4/fv/stepBgP) - they're decorative and per-particle analytic
+//      bookkeeping isn't worth it. Don't "unify" these without that context.
+//
+//  • matProps() is the single source of truth for classification; everything
+//    downstream (colours, analysis text, solution form) keys off its output.
+//
+//  • onMatrixChange() is the hub: whenever M changes (inputs, presets, TD-plane
+//    drag, eigenvalue drag, s/ρ sliders) it recomputes trajectories, redraws
+//    via the dispatchers, and refreshes the selected-point solution. Route any
+//    new M-mutation through it.
+// ════════════════════════════════════════════════════════════════════════
+
 // ══════════════════════════════════════════════════════════
 // PRESETS
 // ══════════════════════════════════════════════════════════
 const PRESETS = [
-  { name:'Spiral sink',                  M:[[-1,-2],[ 2,-1]] },
-  { name:'Spiral source',                M:[[ 1,-2],[ 2, 1]] },
+  { name:'Spiral sink',                   M:[[-1,-2],[ 2,-1]] },
+  { name:'Spiral source',                 M:[[ 1,-2],[ 2, 1]] },
   { name:'Centre (closed orbits)',        M:[[ 0,-2],[ 2, 0]] },
   { name:'Saddle',                        M:[[ 1, 2],[ 2, 1]] },
   { name:'Node sink',                     M:[[-3, 1],[ 0,-2]] },
   { name:'Node source',                   M:[[ 2, 1],[ 0, 3]] },
   { name:'Improper node (sink)',          M:[[-1, 1],[ 0,-1]] },
   { name:'Degenerate (line of equilibria)',M:[[ 1,-1],[ 2,-2]] },
+  // A one-parameter family [[k,-2],[2,-1]] that sweeps through behaviour types
+  // as k increases: a single straight path across the trace-determinant plane.
+  { name:'Family k=0: stable spiral',     M:[[ 0,-2],[ 2,-1]] },
+  { name:'Family k=1: centre',            M:[[ 1,-2],[ 2,-1]] },
+  { name:'Family k=2: unstable spiral',   M:[[ 2,-2],[ 2,-1]] },
+  { name:'Family k=3: improper source',   M:[[ 3,-2],[ 2,-1]] },
+  { name:'Family k=4: degenerate node',   M:[[ 4,-2],[ 2,-1]] },
 ];
 
 // ══════════════════════════════════════════════════════════
@@ -391,29 +538,30 @@ const PRESETS = [
 let M   = PRESETS[0].M.map(r=>[...r]);
 let SC  = 60;
 const SC_MIN=12, SC_MAX=220;
-let W=0, H=0;
+let W=600, H=600;   // sane defaults until updateCanvasSize() measures the box
 
 let mode       = 'animated';
 let inputMode  = 'matrix';
 let speedFactor = 1;
 let userBalls  = [];
 let bgParticles= [];
-let axisBalls  = [];
-let axisK      = 1;
 let animID     = null;
 
 let dragBall=-1, dragHasMoved=false, ballWasNew=false, hoverBall=-1;
 let tdDragging=false;
+// Index into userBalls of the point whose exact solution is shown in the
+// Analysis panel, or -1 if none. Survives matrix changes (solution refreshes).
+let selectedBall=-1;
 
-let tog = { field:true, eigen:true, nullclines:false, bwd:false, axis:false };
+let tog = { field:true, eigen:true, nullclines:false, bwd:false, bold:false };
 
-const DT=0.02, ANIM_SCALE=0.4, ESCAPE_R=14, TRAJ_T_MAX=10;
+const DT=0.02, ANIM_SCALE=0.4, ESCAPE_R=14, TRAJ_T_MAX=20;
 const BG_N=25, BG_TRAIL=22, BG_MAX_AGE=500;
-const USER_TRAIL=65, USER_MAX_AGE=800;
+const USER_TRAIL=65;          // animated head trail length (points) for user/axis balls
 const TAU_MIN=-5, TAU_MAX=5, DEL_MIN=-2.5, DEL_MAX=7;
 
 // ══════════════════════════════════════════════════════════
-// MATH — core
+// MATH - core
 // ══════════════════════════════════════════════════════════
 function fv(x,y){ return{x:M[0][0]*x+M[0][1]*y, y:M[1][0]*x+M[1][1]*y}; }
 
@@ -424,21 +572,14 @@ function rk4(x,y,dt){
   const k4=fv(x+dt*k3.x,   y+dt*k3.y);
   return{x:x+dt/6*(k1.x+2*k2.x+2*k3.x+k4.x),y:y+dt/6*(k1.y+2*k2.y+2*k3.y+k4.y)};
 }
+// NOTE: user balls and axis balls are now driven analytically (evalSolution /
+// analyticTrail). rk4 / fv remain only for the ambient background sparks and
+// the direction-field glyphs.
 
-function integrate(x0,y0){
-  function branch(dt){
-    const pts=[{x:x0,y:y0}]; let p={x:x0,y:y0};
-    for(let t=0;t<TRAJ_T_MAX;t+=Math.abs(dt)){
-      p=rk4(p.x,p.y,dt);
-      if(!isFinite(p.x)||!isFinite(p.y))break;
-      pts.push({x:p.x,y:p.y});
-      if(p.x*p.x+p.y*p.y>ESCAPE_R*ESCAPE_R)break;
-    }
-    return pts;
-  }
-  return{fwd:branch(DT),bwd:branch(-DT)};
-}
-
+// Unit eigenvector for eigenvalue `lambda`. (M - λI) is rank 1, so its kernel
+// is found from either row - but one row can be the zero vector (e.g. when b=0),
+// so if the first row gives a ~zero vector we MUST fall back to the second.
+// Don't remove the fallback: it's not redundant, it's the b=0 / c=0 cases.
 function eigenvec(a,b,c,d,lambda){
   let vx=b, vy=lambda-a;
   if(Math.hypot(vx,vy)<1e-10){vx=lambda-d;vy=c;}
@@ -446,12 +587,37 @@ function eigenvec(a,b,c,d,lambda){
   return len>1e-10?{x:vx/len,y:vy/len}:{x:1,y:0};
 }
 
+// Classify the system; the single source of truth everything downstream keys
+// off (colours, analysis text, solution form, both parameter planes). Returns
+// (tau,delta,disc), an `evals` tag ('real'|'complex'|'repeated'), a `type`,
+// eigenvalues, and unit eigenvectors (null for complex pairs / scalar matrices).
+//
+// DO NOT "tidy" the case order or drop EPS - both are load-bearing:
+//   • Cases are ordered most-degenerate-first (δ≈0 singular → δ<0 saddle →
+//     disc<0 complex → disc>0 node → disc≈0 repeated). Reordering changes which
+//     branch a boundary case falls into.
+//   • EPS fuzzes the boundaries on purpose. Floating point essentially never
+//     lands exactly on disc=0 or tau=0, so without the tolerances centres and
+//     stars would be unreachable and improper nodes would misclassify. (This is
+//     also why exact centres/stars are only reachable via presets or the
+//     tau-snap in tdPointerToMatrix - a real, intended caveat.)
 function matProps(){
   const a=M[0][0],b=M[0][1],c=M[1][0],d=M[1][1];
   const tau=a+d, delta=a*d-b*c, disc=tau*tau-4*delta, EPS=1e-8;
-  if(Math.abs(delta)<EPS)
+  if(Math.abs(delta)<EPS){
+    const nonzeroM=Math.abs(a)>EPS||Math.abs(b)>EPS||Math.abs(c)>EPS||Math.abs(d)>EPS;
+    if(Math.abs(tau)<EPS&&nonzeroM){
+      // Nilpotent: both eigenvalues 0 but M != 0, so M is defective (only one
+      // eigenvector). NOT a line of equilibria - the solution is x0 + t*(M x0),
+      // a linear drift along straight lines. Route to the repeated/defective
+      // solver (lambda=0) below by reporting it as a repeated zero eigenvalue.
+      return{tau,delta,disc,evals:'repeated',type:'nilpotent',
+             lambda:[0],evecs:[eigenvec(a,b,c,d,0)]};
+    }
+    // Genuine line of equilibria: one zero eigenvalue, the other = tau.
     return{tau,delta,disc,evals:'real',type:'degenerate',
            lambda:[0,tau],evecs:[eigenvec(a,b,c,d,0),eigenvec(a,b,c,d,tau)]};
+  }
   if(delta<0){
     const sq=Math.sqrt(Math.max(disc,0)),l1=(tau+sq)/2,l2=(tau-sq)/2;
     return{tau,delta,disc,evals:'real',type:'saddle',
@@ -478,11 +644,33 @@ function matProps(){
 }
 
 // ══════════════════════════════════════════════════════════
-// MATH — matrix parameterisation
+// MATH - matrix parameterisation (the "Fine tuning" sliders)
+//
+// A 2x2 matrix has 4 degrees of freedom. The trace tau and determinant delta
+// fix the characteristic polynomial (hence the eigenvalues), leaving 2 free
+// parameters that reshape the EIGENVECTORS without changing the eigenvalues.
+// We expose those two as:
+//     s   = (a - d)/2   - asymmetry of the diagonal  (UI: "Diagonal split")
+//     rho = (b - c)/2   - antisymmetric part         (UI: "Swirl")
+// i.e. M = (tau/2)I + [[s, .],[., -s]] + [[0, rho],[-rho, 0]] + symmetric off-diag.
+// Holding (tau, delta) fixed and dragging s, rho sweeps the family of real
+// matrices with identical spectrum - the pedagogical point being "same
+// eigenvalues, different geometry". This is what lets BOTH parameter-space
+// drags (TD plane and eigenvalues) and the sliders coexist: the drags set
+// (tau, delta) and preserve current (s, rho); the sliders set (s, rho).
 // ══════════════════════════════════════════════════════════
 function getSRho(){
   return{s:(M[0][0]-M[1][1])/2, rho:(M[0][1]-M[1][0])/2};
 }
+// Reconstruct M from (tau, delta, s, rho). Given a,d from tau/2±s, the off-
+// diagonal product b*c is forced by delta: bc = (tau/2)^2 - s^2 - delta. With
+// rho = (b-c)/2 fixed, b and c are the roots of a system whose solvability
+// needs sigma^2 = rho^2 + bc >= 0.
+//   KNOWN LIMITATION (intended, don't "fix" by always taking the real branch):
+//   when sigma^2 < 0 no real (b,c) with the requested rho reproduces this
+//   delta, so we fall back to a purely antisymmetric off-diagonal (b=-c) that
+//   gets delta as close as possible. In that regime the sliders no longer
+//   preserve delta exactly. See WORKING_DOCUMENT.md §2.5.
 function matFromTauDeltaSRho(tau,delta,s,rho){
   const a=tau/2+s, d=tau/2-s;
   const bc=tau*tau/4-s*s-delta;
@@ -494,8 +682,27 @@ function matFromTauDeltaSRho(tau,delta,s,rho){
 }
 
 // ══════════════════════════════════════════════════════════
-// MATH — exact solution
+// MATH - exact solution
+//
+// exactSolution(x0,y0) returns coefficients for a CLOSED-FORM x(t), y(t)
+// satisfying x' = Mx with x(0) = (x0,y0). These coefficients are what drives
+// both the displayed TeX and the analytic animation (evalSolution): no
+// numerical integration, so closed orbits stay exactly closed.
+//
+// Each eigenstructure needs its own real-valued solution form:
+//   real distinct   → c1 v1 e^{l1 t} + c2 v2 e^{l2 t}
+//   complex pair    → e^{alpha t}(cos/sin combination)  [no real eigenvectors]
+//   repeated+vector → e^{lt}(c1 v + c2 (w + t v))       [improper node]
+//   scalar          → just (x0,y0) e^{lt}               [star]
+// The helpers below construct the real basis each form needs.
 // ══════════════════════════════════════════════════════════
+
+// For a complex pair lambda = alpha ± i*beta, build the real 2D basis {p, q}
+// such that the real/imaginary parts of the complex eigenvector span the plane.
+// We solve (M - alpha I) p = -beta q row-wise, picking whichever row is
+// numerically well-conditioned (D or D2 above threshold) to avoid dividing by
+// a near-zero pivot; the final fallback (identity) only triggers for the
+// scalar-like edge case that shouldn't reach here.
 function complexEigenvecParts(a,b,c,d,alpha,beta){
   const reA=a-alpha, D=reA*reA+beta*beta;
   if(D>1e-10) return{px:-b*reA/D,py:1,qx:-b*beta/D,qy:0};
@@ -504,6 +711,10 @@ function complexEigenvecParts(a,b,c,d,alpha,beta){
   return{px:1,py:0,qx:0,qy:1};
 }
 
+// Solve (M - lambda I) w = v for a generalized eigenvector w, needed for the
+// improper-node solution form e^{lt}(c1 v + c2(w + t v)). The matrix is rank-1
+// here, so we pick the row with the larger norm (best conditioned) and within
+// it the larger-magnitude entry as pivot, to keep the division stable.
 function generalizedEigenvec(a,b,c,d,lambda,v){
   const A=a-lambda,B=b,C=c,D=d-lambda;
   const n1=Math.hypot(A,B),n2=Math.hypot(C,D);
@@ -544,18 +755,98 @@ function exactSolution(x0,y0){
   return{type:'real',l1,l2,Ax:c1*ev1.x,Bx:c2*ev2.x,Ay:c1*ev1.y,By:c2*ev2.y};
 }
 
+// Evaluate a precomputed exactSolution object at time t → {x,y}.
+// Used to drive animated balls and (eventually) the time-series view
+// analytically, so closed orbits stay exactly closed (no RK4 drift).
+function evalSolution(sol,t){
+  if(!sol)return null;
+  switch(sol.type){
+    case 'star':{const e=Math.exp(sol.lambda*t);return{x:sol.x0*e,y:sol.y0*e};}
+    case 'real':{
+      const e1=Math.exp(sol.l1*t),e2=Math.exp(sol.l2*t);
+      return{x:sol.Ax*e1+sol.Bx*e2, y:sol.Ay*e1+sol.By*e2};}
+    case 'complex':{
+      const{alpha,beta,Ax,Bx,Ay,By}=sol;
+      const e=Math.exp(alpha*t),co=Math.cos(beta*t),si=Math.sin(beta*t);
+      return{x:e*(Ax*co+Bx*si), y:e*(Ay*co+By*si)};}
+    case 'improper':{
+      const{lambda,Px,Qx,Py,Qy}=sol,e=Math.exp(lambda*t);
+      return{x:e*(Px+Qx*t), y:e*(Py+Qy*t)};}
+    default:return null;
+  }
+}
+
+// Cutoff radius for trail drawing: extend trails to cover the visible region
+// (plus a margin) so zooming out doesn't truncate them at a fixed radius. Capped
+// so a wildly zoomed-out view can't demand unbounded sampling.
+function trailCutoffR(){
+  const visible=Math.max(W,H)/(2*SC);   // world-units half-extent on screen
+  return Math.min(200, Math.max(ESCAPE_R, visible*1.4));
+}
+// Sample an analytic trajectory from t=0 outward (sign of tMax sets direction),
+// stopping when it leaves the cutoff radius or goes non-finite.
+//
+// For OSCILLATORY solutions (complex eigenvalues: spirals and centres) we sample
+// by PERIOD rather than spreading n samples across the whole tMax. An elongated
+// ellipse needs many points per loop to look smooth; with plain time-uniform
+// sampling a short period packed into tMax gives only a handful of points per
+// loop, so successive loops are different polygons and the curve appears to
+// grow/shrink (aliasing, not drift - the closed-form orbit is exact). We draw a
+// fixed density per period, capped at enough periods to fill the view (a centre
+// closes after one period, so extra loops are redundant).
+function analyticTrail(sol,tMax,n,cutoffR){
+  if(!sol)return[];
+  const R=cutoffR||trailCutoffR(), R2=R*R;
+  let nSamples=n, span=tMax;
+  if(sol.type==='complex'&&sol.beta>1e-6){
+    const period=2*Math.PI/sol.beta;
+    const SAMPLES_PER_PERIOD=64;
+    // Centres (alpha~0) close after one period; spirals need several to spiral
+    // in/out across the view. Cap total periods so sampling stays bounded.
+    const periodsNeeded=Math.abs(sol.alpha)<1e-4?1:Math.min(12,Math.abs(tMax)/period);
+    span=Math.sign(tMax)*Math.max(period*periodsNeeded, Math.min(Math.abs(tMax),period));
+    nSamples=Math.max(n, Math.ceil(SAMPLES_PER_PERIOD*Math.abs(span)/period));
+    nSamples=Math.min(nSamples, 4000);   // hard cap
+  }
+  const pts=[];
+  // A centre traces a CLOSED bounded orbit; clipping it at the view radius would
+  // chop the loop and make it look unclosed. So for centres we ignore the radius
+  // cutoff and always draw the full period. (Spirals/others still clip.)
+  const isCentre=sol.type==='complex'&&Math.abs(sol.alpha)<1e-4;
+  for(let i=0;i<=nSamples;i++){
+    const t=(i/nSamples)*span;
+    const p=evalSolution(sol,t);
+    if(!p||!isFinite(p.x)||!isFinite(p.y))break;
+    pts.push(p);
+    if(!isCentre && p.x*p.x+p.y*p.y>R2)break;
+  }
+  return pts;
+}
+
 // ══════════════════════════════════════════════════════════
-// CANVAS & COORDS
+// CANVAS & COORDS (phase plane)
+// W,H,SC and these transforms belong to the PHASE PLANE specifically. The time
+// panel has its own coordinate logic (see makeTimePanel). bgCvs/fgCvs are the
+// phase panel's two layers; the panel object wraps the render functions that
+// use them.
 // ══════════════════════════════════════════════════════════
 const bgCvs=document.getElementById('cvs-bg'), fgCvs=document.getElementById('cvs-fg');
 const bgCtx=bgCvs.getContext('2d'),            fgCtx=fgCvs.getContext('2d');
 const wx=x=>W/2+x*SC, wy=y=>H/2-y*SC;
 const cw=cx=>(cx-W/2)/SC, ch=cy=>(H/2-cy)/SC;
 
+// Size the phase-plane canvases to their box. Called by the phase panel's
+// resize(); a no-op cost when the phase panel is hidden (box has 0 size, guarded).
 function updateCanvasSize(){
   const box=document.getElementById('cvs-box');
-  W=box.offsetWidth||600; H=box.offsetHeight||600;
-  bgCvs.width=fgCvs.width=W; bgCvs.height=fgCvs.height=H;
+  const w=box.offsetWidth, h=box.offsetHeight;
+  if(!w||!h)return;
+  W=w;H=h;
+  const dpr=window.devicePixelRatio||1;
+  [bgCvs,fgCvs].forEach(c=>{
+    c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);
+    c.getContext('2d').setTransform(dpr,0,0,dpr,0,0);   // draw in logical (CSS) px
+  });
 }
 
 // ══════════════════════════════════════════════════════════
@@ -582,11 +873,23 @@ function drawPolyline(ctx,pts,alpha,lw,color,withArrow){
   ctx.stroke();
   if(withArrow&&pts.length>=3){
     ctx.fillStyle=color;
-    const fracs=pts.length>25?[0.3,0.68]:[0.45];
-    fracs.forEach(frac=>{
-      const idx=Math.max(1,Math.floor(pts.length*frac));
-      if(idx<pts.length)arrowhead(ctx,wx(pts[idx-1].x),wy(pts[idx-1].y),wx(pts[idx].x),wy(pts[idx].y),10);
-    });
+    // Place arrowheads by SCREEN ARC LENGTH, not point index. Trajectory points
+    // bunch up where the flow is slow (near the origin), so index-fraction
+    // placement squashed the arrows together there; arc length spreads them
+    // evenly along the part of the curve actually visible.
+    const sx=pts.map(p=>wx(p.x)), sy=pts.map(p=>wy(p.y));
+    const cum=[0];
+    for(let i=1;i<pts.length;i++)cum[i]=cum[i-1]+Math.hypot(sx[i]-sx[i-1],sy[i]-sy[i-1]);
+    const total=cum[cum.length-1];
+    if(total>20){
+      const fracs=total>140?[0.33,0.7]:[0.5];
+      fracs.forEach(frac=>{
+        const target=total*frac;
+        // first index whose cumulative length passes the target
+        let idx=1;while(idx<cum.length-1&&cum[idx]<target)idx++;
+        arrowhead(ctx,sx[idx-1],sy[idx-1],sx[idx],sy[idx],10);
+      });
+    }
   }
   ctx.restore();
 }
@@ -659,30 +962,25 @@ function renderBg(){
       lineThrough(bgCtx,ev.x,ev.y,col,[9,5]);
     });
   }
-  // Axis seed trajectories (both modes)
-  if(tog.axis&&axisBalls.length>0){
-    axisBalls.forEach(b=>{
-      drawPolyline(bgCtx,b.fwd,0.55,2.2,'#4466aa',true);
-      if(tog.bwd)drawPolyline(bgCtx,b.bwd,0.22,1.6,'#4466aa',false);
-    });
-    // Seed point dots
-    bgCtx.setLineDash([]);
-    axisBalls.forEach(b=>{
-      bgCtx.beginPath();bgCtx.arc(wx(b.seed.x),wy(b.seed.y),3.5,0,2*Math.PI);
-      bgCtx.fillStyle='#4466aa';bgCtx.globalAlpha=0.7;bgCtx.fill();bgCtx.globalAlpha=1;
-      bgCtx.strokeStyle='rgba(255,255,255,.8)';bgCtx.lineWidth=1;bgCtx.stroke();
-    });
-  }
+  const bw=tog.bold?1.5:1;   // bold-lines width multiplier
   // Trails mode: static user ball trajectories
   if(mode==='trails'){
     userBalls.forEach((ball,i)=>{
-      if(tog.bwd)drawPolyline(bgCtx,ball.bwd,0.28,2.5,'#1a2a4a',false);
-      drawPolyline(bgCtx,ball.fwd,0.85,3.5,'#1a2a4a',true);
+      if(tog.bwd)drawPolyline(bgCtx,ball.bwd,0.28,2.5*bw,'#1a2a4a',false);
+      drawPolyline(bgCtx,ball.fwd,0.85,3.5*bw,'#1a2a4a',true);
     });
     // User ball seed point markers
     bgCtx.setLineDash([]);
+    const selIdx=pointAnalysisIndex();
     userBalls.forEach((ball,i)=>{
       const active=(i===hoverBall||i===dragBall);
+      if(i===selIdx){
+        // Selected-point highlight: a soft outer ring so it stands out as the
+        // trajectory shown in Point analysis / the time view.
+        bgCtx.beginPath();bgCtx.arc(wx(ball.seed.x),wy(ball.seed.y),11,0,2*Math.PI);
+        bgCtx.fillStyle='rgba(204,64,0,.15)';bgCtx.fill();
+        bgCtx.strokeStyle='rgba(204,64,0,.7)';bgCtx.lineWidth=2;bgCtx.stroke();
+      }
       bgCtx.beginPath();bgCtx.arc(wx(ball.seed.x),wy(ball.seed.y),active?7.5:6,0,2*Math.PI);
       bgCtx.fillStyle='#cc4000';bgCtx.fill();
       bgCtx.strokeStyle='rgba(255,255,255,.85)';bgCtx.lineWidth=1.5;bgCtx.stroke();
@@ -703,13 +1001,23 @@ function renderBg(){
 // BACKGROUND SPARKS
 // ══════════════════════════════════════════════════════════
 function randomPos(){
-  const xH=W/(2*SC)*.9,yH=H/(2*SC)*.9,MIN_R=0.4;
-  let x,y;
+  const xH=W/(2*SC)*.9, yH=H/(2*SC)*.9;
+  // Keep the exclusion radius safely inside the box, so rejection sampling
+  // always has valid points to find (guards against a tiny/zero-size box during
+  // early layout - otherwise the do/while below could never exit).
+  const MIN_R=Math.min(0.4, 0.5*Math.min(xH,yH));
+  if(!(xH>0&&yH>0))return{x:0,y:0};
+  let x,y,tries=0;
   do{x=(Math.random()*2-1)*xH;y=(Math.random()*2-1)*yH;}
-  while(x*x+y*y<MIN_R*MIN_R);
+  while(x*x+y*y<MIN_R*MIN_R && ++tries<50);
   return{x,y};
 }
 function mkBgP(){const p=randomPos();return{x:p.x,y:p.y,trail:[],age:Math.floor(Math.random()*BG_MAX_AGE),stuckFrames:0};}
+// Background sparks are RK4-INTEGRATED (unlike user/axis balls, which are
+// analytic - see stepAnimBall). Integrated particles can stall near fixed
+// points or saddles, so they need stuck-detection + recycling here; this
+// machinery is correct for sparks and should NOT be "harmonised" with the
+// analytic ball stepper.
 function stepBgP(p){
   if(speedFactor===0)return;
   const effectiveDT=DT*speedFactor*ANIM_SCALE;
@@ -729,28 +1037,48 @@ function initBgParticles(){bgParticles=Array.from({length:BG_N},mkBgP);}
 // ══════════════════════════════════════════════════════════
 function stepAnimBall(ball){
   if(speedFactor===0)return;
-  const effectiveDT=DT*speedFactor*ANIM_SCALE;
-  const vel=fv(ball.ax,ball.ay);
-  if(Math.hypot(vel.x,vel.y)<0.012){ball.stuckFrames=(ball.stuckFrames||0)+1;} else{ball.stuckFrames=0;}
+  // Animated balls are positioned by SAMPLING the closed form at advancing time
+  // (not by integrating). Keep it that way: it's what makes centres exactly
+  // closed and backward time free. See WORKING_DOCUMENT.md §2.2.
+  ball.aT += DT*speedFactor*ANIM_SCALE;
+  const p=evalSolution(ball.sol,ball.aT);
+  const escaped=p&&(p.x*p.x+p.y*p.y>ESCAPE_R*ESCAPE_R);
+  // Recycle a ball back to its seed when it escapes (unstable) OR has decayed
+  // essentially to the origin (stable) so the trajectory stays visible. The two
+  // conditions are BOTH needed and the thresholds are deliberate:
+  //   • seedR2>1e-4 guard: a seed already at the origin must not insta-recycle.
+  //   • A centre satisfies NEITHER (never escapes, never decays) so it loops
+  //     naturally without a reset - don't add a time cap, it would snap mid-orbit.
+  const seedR2=ball.seed.x*ball.seed.x+ball.seed.y*ball.seed.y;
+  const decayed=p&&seedR2>1e-4&&(p.x*p.x+p.y*p.y)<2.5e-3;
+  if(!p||!isFinite(p.x)||!isFinite(p.y)||escaped||decayed){
+    ball.aT=0;ball.aTrail=[];
+    const q=evalSolution(ball.sol,0);
+    ball.ax=q?q.x:ball.seed.x;ball.ay=q?q.y:ball.seed.y;
+    return;
+  }
   ball.aTrail.push({x:ball.ax,y:ball.ay});
   if(ball.aTrail.length>USER_TRAIL)ball.aTrail.shift();
-  const n=rk4(ball.ax,ball.ay,effectiveDT);
-  ball.aAge+=Math.abs(speedFactor);
-  if(ball.stuckFrames>80||!isFinite(n.x)||!isFinite(n.y)||n.x*n.x+n.y*n.y>ESCAPE_R*ESCAPE_R||ball.aAge>=USER_MAX_AGE){
-    ball.ax=ball.seed.x;ball.ay=ball.seed.y;ball.aTrail=[];ball.aAge=0;ball.stuckFrames=0;
-  }else{ball.ax=n.x;ball.ay=n.y;}
+  ball.ax=p.x;ball.ay=p.y;
 }
 
 // ══════════════════════════════════════════════════════════
 // USER BALLS
 // ══════════════════════════════════════════════════════════
 function createBall(x,y){
-  const t=integrate(x,y);
-  return{seed:{x,y},fwd:t.fwd,bwd:t.bwd,ax:x,ay:y,aTrail:[],aAge:0,stuckFrames:0};
+  const sol=exactSolution(x,y);
+  const TN=240;
+  return{seed:{x,y},sol,
+         fwd:analyticTrail(sol,TRAJ_T_MAX,TN),
+         bwd:analyticTrail(sol,-TRAJ_T_MAX,TN),
+         ax:x,ay:y,aTrail:[],aT:0};
 }
 function recomputeBallTrail(i){
-  const t=integrate(userBalls[i].seed.x,userBalls[i].seed.y);
-  userBalls[i].fwd=t.fwd;userBalls[i].bwd=t.bwd;
+  const b=userBalls[i];
+  b.sol=exactSolution(b.seed.x,b.seed.y);
+  const TN=240;
+  b.fwd=analyticTrail(b.sol,TRAJ_T_MAX,TN);
+  b.bwd=analyticTrail(b.sol,-TRAJ_T_MAX,TN);
 }
 function findNearestBall(mx,my){
   const SNAP=15/SC;let best=-1,bd=SNAP;
@@ -762,28 +1090,17 @@ function findNearestBall(mx,my){
 }
 
 // ══════════════════════════════════════════════════════════
-// AXIS SEED BALLS
-// ══════════════════════════════════════════════════════════
-function initAxisBalls(){
-  const seeds=[{x:axisK,y:0},{x:-axisK,y:0},{x:0,y:axisK},{x:0,y:-axisK}];
-  axisBalls=seeds.map(s=>{
-    const t=integrate(s.x,s.y);
-    return{seed:{x:s.x,y:s.y},fwd:t.fwd,bwd:t.bwd,ax:s.x,ay:s.y,aTrail:[],aAge:0,stuckFrames:0};
-  });
-}
-function recomputeAxisBalls(){
-  initAxisBalls();
-}
-
-// ══════════════════════════════════════════════════════════
 // FOREGROUND RENDER
 // ══════════════════════════════════════════════════════════
 function renderFgAnimated(){
   fgCtx.clearRect(0,0,W,H);
-  // Faint forward trajectory overlay for user balls
+  // Faint trajectory overlay for user balls: forward path always, backward path
+  // too when "backwards in time" is on (mirrors trails mode). The bold-lines
+  // display option thickens lines and lifts the overlay opacity for visibility.
+  const lw=tog.bold?2.0:1.2, ov=tog.bold?0.30:0.18;
   userBalls.forEach(ball=>{
-    const overlay=speedFactor>=0?ball.fwd:ball.bwd;
-    drawPolyline(fgCtx,overlay,0.18,1.2,'#cc4000',false);
+    drawPolyline(fgCtx,ball.fwd,ov,lw,'#cc4000',false);
+    if(tog.bwd)drawPolyline(fgCtx,ball.bwd,ov*0.8,lw,'#cc4000',false);
   });
   // Background sparks
   bgParticles.forEach(p=>{
@@ -793,24 +1110,20 @@ function renderFgAnimated(){
       fgCtx.fillStyle='#1a2855';fgCtx.globalAlpha=.46;fgCtx.fill();fgCtx.globalAlpha=1;
     }
   });
-  // Axis ball animated dots
-  if(tog.axis){
-    axisBalls.forEach(b=>{
-      drawFadingTrail(b.aTrail,'#4466aa',.5,1.5);
-      fgCtx.beginPath();fgCtx.arc(wx(b.ax),wy(b.ay),4.5,0,2*Math.PI);
-      fgCtx.fillStyle='#4466aa';fgCtx.globalAlpha=0.85;fgCtx.fill();
-      fgCtx.strokeStyle='rgba(255,255,255,.7)';fgCtx.lineWidth=1.2;fgCtx.stroke();
-      fgCtx.globalAlpha=1;
-    });
-  }
   // User ball animated tracers
-  userBalls.forEach(ball=>{
-    // Seed dot — same clean solid style as trails mode
+  const selIdx=pointAnalysisIndex();
+  userBalls.forEach((ball,i)=>{
+    if(i===selIdx){
+      fgCtx.beginPath();fgCtx.arc(wx(ball.seed.x),wy(ball.seed.y),11,0,2*Math.PI);
+      fgCtx.fillStyle='rgba(204,64,0,.15)';fgCtx.fill();
+      fgCtx.strokeStyle='rgba(204,64,0,.7)';fgCtx.lineWidth=2;fgCtx.stroke();
+    }
+    // Seed dot - same clean solid style as trails mode
     fgCtx.beginPath();fgCtx.arc(wx(ball.seed.x),wy(ball.seed.y),6,0,2*Math.PI);
     fgCtx.fillStyle='#cc4000';fgCtx.fill();
     fgCtx.strokeStyle='rgba(255,255,255,.85)';fgCtx.lineWidth=1.5;fgCtx.stroke();
     // Trail + animated head (smaller dot to distinguish from seed)
-    drawFadingTrail(ball.aTrail,'#cc4000',.9,3.0);
+    drawFadingTrail(ball.aTrail,'#cc4000',.9,tog.bold?4.0:3.0);
     fgCtx.beginPath();fgCtx.arc(wx(ball.ax),wy(ball.ay),4.5,0,2*Math.PI);
     fgCtx.fillStyle='#cc4000';fgCtx.globalAlpha=0.75;fgCtx.fill();
     fgCtx.strokeStyle='rgba(255,255,255,.7)';fgCtx.lineWidth=1.2;fgCtx.stroke();
@@ -818,20 +1131,304 @@ function renderFgAnimated(){
   });
 }
 
-function renderFg(){
-  if(mode==='animated')renderFgAnimated();
-  // trails mode: all drawing is in bgCtx (renderBg handles user balls + axis balls)
-  else fgCtx.clearRect(0,0,W,H);
+// ══════════════════════════════════════════════════════════
+// PANELS - display abstraction
+//
+// A "panel" is one way of displaying the system, owning its canvas(es). Each
+// implements three methods:
+//   resize()        - size its canvas(es) to the current box dimensions
+//   renderStatic()  - draw everything that only changes when M / toggles change
+//                     (called from renderStatic(), the dispatcher)
+//   renderAnim()    - draw the moving layer every animation frame (animated
+//                     mode only); a no-op or clear in trails mode
+//
+// viewMode ('phase' | 'time' | 'both') decides which panels are ACTIVE; the
+// dispatchers below fan out to activePanels, so adding a view = adding a panel
+// object to the registry and a case to setViewMode. No render function needs to
+// know which other views exist.
+//
+// NOTE on the phase/time split vs the animated/trails MODE: mode is the
+// animation strategy and is independent of viewMode. The phase panel honours
+// both (trails mode draws static trajectories in renderStatic, animated mode
+// draws moving heads in renderAnim). The time panel currently only has meaning
+// under animated mode (the playhead); in trails mode it shows the static curves.
+// ══════════════════════════════════════════════════════════
+let viewMode='phase';
+const PANELS={};
+
+PANELS.phase={
+  el:document.getElementById('panel-phase'),
+  resize(){updateCanvasSize();},
+  renderStatic(){renderBg();},        // grid/field/eigenvectors/trajectories
+  renderAnim(){
+    if(mode==='animated')renderFgAnimated();
+    else fgCtx.clearRect(0,0,W,H);    // trails: dynamic layer stays empty
+  },
+};
+
+// --- TIME PANEL --------------------------------------------------------------
+// Plots x(t) (orange) and y(t) (blue) for one trajectory against time, matching
+// the phase plane's colour language. Owns its OWN view state (tWindow, vHalf,
+// tPan) - completely independent of the phase plane's SC - so the two panels
+// zoom/pan separately. Sampling reuses evalSolution, so curves are exact.
+//
+// Which trajectory: the selected point if one is selected, else the most recent
+// user ball (pickTimeBall). In animated mode a playhead tracks that ball's aT.
+const timeCvs=document.getElementById('time-cvs');
+const timeCtx=timeCvs.getContext('2d');
+let TW_=0,TH_=0;
+let timeAxes=null;   // {yAxis,xT0,x0,x1,yTop,yBot} - axis screen positions, for grab-band hit-testing
+
+// Time-panel view state (independent zoom/pan).
+let tWindow=12;     // seconds of t visible across the width
+let vHalf=4;        // value axis half-span (zoom); visible range is vCenter ± vHalf
+let tPan=0;         // t at the left edge (pan along time)
+let vCenter=0;      // value at the vertical centre (pan along value)
+const TIME_PAD_L=38, TIME_PAD_B=24, TIME_PAD_T=12, TIME_PAD_R=12;
+const T_WIN_MIN=1, T_WIN_MAX=120, V_HALF_MIN=0.2, V_HALF_MAX=200;
+
+// Which trajectory the time panel shows.
+function pickTimeBall(){
+  if(selectedBall>=0&&selectedBall<userBalls.length)return userBalls[selectedBall];
+  return userBalls.length?userBalls[userBalls.length-1]:null;
+}
+// Index of the ball currently featured in Point analysis / the time view, for
+// highlighting in the phase plane. Selected if any, else the most recent.
+function pointAnalysisIndex(){
+  if(selectedBall>=0&&selectedBall<userBalls.length)return selectedBall;
+  return userBalls.length?userBalls.length-1:-1;
+}
+
+// Coordinate transforms for the time panel (t→x, value→y). Plot area is inset
+// by the padding so axes/labels have room.
+function timeTX(t){const w=TW_-TIME_PAD_L-TIME_PAD_R;return TIME_PAD_L+((t-tPan)/tWindow)*w;}
+function timeVY(v){const h=TH_-TIME_PAD_T-TIME_PAD_B;return TIME_PAD_T+h/2-((v-vCenter)/vHalf)*(h/2);}
+
+function drawTimeAxesAndCurves(){
+  if(!TW_||!TH_)return;
+  timeCtx.clearRect(0,0,TW_,TH_);
+  timeCtx.fillStyle='#fff';timeCtx.fillRect(0,0,TW_,TH_);
+  const x0=TIME_PAD_L, x1=TW_-TIME_PAD_R, yTop=TIME_PAD_T, yBot=TH_-TIME_PAD_B;
+
+  // Gridlines + value labels (horizontal lines at "nice" value steps).
+  const vStep=niceStep(vHalf);
+  timeCtx.strokeStyle='#ece8e0';timeCtx.lineWidth=1;timeCtx.setLineDash([]);
+  timeCtx.font='10px system-ui,sans-serif';
+  timeCtx.textAlign='right';timeCtx.textBaseline='middle';
+  const vLo=vCenter-vHalf, vHi=vCenter+vHalf;
+  for(let v=Math.ceil(vLo/vStep)*vStep;v<=vHi+1e-9;v+=vStep){
+    const y=timeVY(v);if(y<yTop-1||y>yBot+1)continue;
+    timeCtx.strokeStyle='#ece8e0';
+    timeCtx.beginPath();timeCtx.moveTo(x0,y);timeCtx.lineTo(x1,y);timeCtx.stroke();
+    if(Math.abs(v)>1e-9){timeCtx.fillStyle='#8a7a5a';timeCtx.fillText(fmtTick(v),x0-5,y);}
+  }
+  // Horizontal (v=0) axis position, clamped into the plot area so it (and the
+  // t-labels hung from it) are always visible even when 0 is panned off.
+  const yZero=timeVY(0);
+  const yAxis=Math.max(yTop,Math.min(yBot,yZero));
+
+  // Vertical gridlines + t labels at nice t steps. Labels are drawn against the
+  // horizontal axis line (not in the bottom padding, which can fall outside the
+  // bitmap), flipping above the line when the axis sits near the bottom edge.
+  // t=0 is bolder since it marks the initial condition.
+  const tStep=niceStep(tWindow/2);
+  timeCtx.textAlign='center';
+  const labelBelow=yAxis<=yBot-14;
+  timeCtx.textBaseline=labelBelow?'top':'bottom';
+  const tStart=Math.ceil(tPan/tStep)*tStep;
+  for(let t=tStart;t<=tPan+tWindow+1e-9;t+=tStep){
+    const x=timeTX(t);if(x<x0-1||x>x1+1)continue;
+    const isZero=Math.abs(t)<1e-9;
+    timeCtx.strokeStyle=isZero?'#d8cfc0':'#ece8e0';
+    timeCtx.beginPath();timeCtx.moveTo(x,yTop);timeCtx.lineTo(x,yBot);timeCtx.stroke();
+    timeCtx.fillStyle=isZero?'#6a5a40':'#8a7a5a';
+    timeCtx.fillText(fmtTick(t),x,labelBelow?yAxis+4:yAxis-4);
+  }
+
+  // Axes: value-zero line (horizontal, clamped) and the t=0 line (vertical).
+  timeCtx.strokeStyle='#c0b8b0';timeCtx.lineWidth=1.5;
+  timeCtx.beginPath();timeCtx.moveTo(x0,yAxis);timeCtx.lineTo(x1,yAxis);timeCtx.stroke();
+  // t=0 vertical line if it's in view (this is where x0,y0 live).
+  const xT0=timeTX(0);
+  // Publish axis screen positions + plot bounds so the pointer code can put the
+  // zoom grab-bands ON the axes (which move with pan), not at the viewport edge.
+  timeAxes={yAxis, xT0, x0, x1, yTop, yBot};
+  if(xT0>=x0-0.5&&xT0<=x1+0.5){
+    timeCtx.beginPath();timeCtx.moveTo(xT0,yTop);timeCtx.lineTo(xT0,yBot);timeCtx.stroke();
+  }
+  // If backwards is OFF but the view includes t<0, shade that region faintly so
+  // it's clear the curves intentionally stop at t=0.
+  if(!tog.bwd&&tPan<0){
+    const xClipR=Math.min(x1,timeTX(0));
+    if(xClipR>x0){
+      timeCtx.fillStyle='rgba(180,170,150,.10)';
+      timeCtx.fillRect(x0,yTop,xClipR-x0,yBot-yTop);
+    }
+  }
+  // Axis titles
+  timeCtx.fillStyle='#a09070';timeCtx.font='9px system-ui,sans-serif';
+  timeCtx.textAlign='right';timeCtx.textBaseline='bottom';timeCtx.fillText('t',x1,yBot-2);
+
+  const ball=pickTimeBall();
+  if(!ball||!ball.sol){
+    timeCtx.fillStyle='#b0a898';timeCtx.font='12px system-ui,sans-serif';
+    timeCtx.textAlign='center';timeCtx.textBaseline='middle';
+    timeCtx.fillText('Add a starting point to see x(t), y(t)',TW_/2,TH_/2);
+    return;
+  }
+  // Sample and draw x(t), y(t). Clip to the plot area so steep growth doesn't
+  // scribble over the labels. Curves are drawn only for t >= 0 unless the shared
+  // "backwards in time" toggle is on (then negative t is shown too) - this is
+  // the time-series equivalent of tracing trajectories backwards in the phase
+  // plane, controlled by the SAME tog.bwd flag.
+  const tLeft=tog.bwd?tPan:Math.max(0,tPan);
+  const tRight=tPan+tWindow;
+  timeCtx.save();
+  timeCtx.beginPath();timeCtx.rect(x0,yTop,x1-x0,yBot-yTop);timeCtx.clip();
+  const N=Math.max(60,Math.floor((x1-x0)));   // ~1 sample per pixel
+  const plot=(key,col)=>{
+    if(tRight<=tLeft)return;
+    timeCtx.strokeStyle=col;timeCtx.lineWidth=2;timeCtx.lineJoin='round';
+    timeCtx.beginPath();let started=false;
+    for(let i=0;i<=N;i++){
+      const t=tLeft+(i/N)*(tRight-tLeft);
+      const p=evalSolution(ball.sol,t);
+      if(!p||!isFinite(p.x)||!isFinite(p.y)){started=false;continue;}
+      const X=timeTX(t),Y=timeVY(p[key]);
+      if(started)timeCtx.lineTo(X,Y);else{timeCtx.moveTo(X,Y);started=true;}
+    }
+    timeCtx.stroke();
+  };
+  plot('x','#cc4000');   // x(t) - same orange as the phase-plane ball
+  plot('y','#3c64c8');   // y(t) - blue
+  timeCtx.restore();
+
+  // Legend (top-left of plot area).
+  timeCtx.font='10px system-ui,sans-serif';timeCtx.textBaseline='middle';
+  timeCtx.textAlign='left';
+  timeCtx.fillStyle='#cc4000';timeCtx.fillText('x(t)',x0+6,yTop+8);
+  timeCtx.fillStyle='#3c64c8';timeCtx.fillText('y(t)',x0+34,yTop+8);
+
+  // Draggable initial-condition handles, on the t=0 line at heights x0,y0.
+  // Dragging them sets the picked ball's starting coordinates - the way to set
+  // the initial condition when only the Time view is shown (no phase plane to
+  // click). drawTimeHandles also records hit positions for the pointer logic.
+  drawTimeHandles(ball,xT0,x0,x1);
+}
+
+// Handle geometry shared by the renderer (draw) and pointer code (hit-test).
+let timeHandles=null;   // {xPix, x0:{y,val}, y0:{y,val}} or null when off-screen
+function drawTimeHandles(ball,xT0,x0,x1){
+  timeHandles=null;
+  if(!ball||!ball.sol)return;
+  // Only show handles when the t=0 line is in view.
+  if(xT0<x0-8||xT0>x1+8)return;
+  const yX=timeVY(ball.seed.x), yY=timeVY(ball.seed.y);
+  timeHandles={xPix:xT0, x0:{y:yX,val:ball.seed.x}, y0:{y:yY,val:ball.seed.y}};
+  const draw=(y,col,label)=>{
+    timeCtx.beginPath();timeCtx.arc(xT0,y,6,0,2*Math.PI);
+    timeCtx.fillStyle=col;timeCtx.fill();
+    timeCtx.strokeStyle='rgba(255,255,255,.9)';timeCtx.lineWidth=1.5;timeCtx.stroke();
+    timeCtx.fillStyle=col;timeCtx.font='9px system-ui,sans-serif';
+    timeCtx.textAlign='left';timeCtx.textBaseline='middle';
+    timeCtx.fillText(label,xT0+9,y);
+  };
+  draw(timeHandles.x0.y,'#cc4000','x\u2080');
+  draw(timeHandles.y0.y,'#3c64c8','y\u2080');
+}
+// Invert the value transform: pixel y → data value.
+function timeYToV(py){const h=TH_-TIME_PAD_T-TIME_PAD_B;return vCenter+(TIME_PAD_T+h/2-py)/(h/2)*vHalf;}
+
+// "Nice" step (1,2,5 ×10^k) for a half-range, aiming ~4-6 divisions.
+function niceStep(half){
+  // Guard against half<=0 (would give mag=0 → step=0 → infinite gridline loop).
+  if(!(half>0)||!isFinite(half))return 1;
+  const raw=half/3;const mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const n=raw/mag;return (n<1.5?1:n<3.5?2:n<7.5?5:10)*mag;
+}
+function fmtTick(v){return Math.abs(v)<1e-9?'0':(Math.abs(v)>=100?v.toFixed(0):Math.abs(v)>=1?(+v.toFixed(1)).toString():(+v.toFixed(2)).toString());}
+
+PANELS.time={
+  el:document.getElementById('panel-time'),
+  resize(){
+    const box=document.getElementById('time-box');
+    const w=box.offsetWidth,h=box.offsetHeight;
+    if(!w||!h)return;
+    TW_=w;TH_=h;
+    const dpr=window.devicePixelRatio||1;
+    timeCvs.width=Math.round(w*dpr);timeCvs.height=Math.round(h*dpr);
+    timeCtx.setTransform(dpr,0,0,dpr,0,0);   // draw in logical (CSS) px
+  },
+  renderStatic(){drawTimeAxesAndCurves();},
+  renderAnim(){
+    // In animated mode, draw a playhead at the tracked ball's current time and a
+    // dot on each curve. (The static layer already drew the curves underneath;
+    // here we redraw the whole panel so the playhead doesn't smear, since this
+    // panel has a single canvas rather than the phase plane's two layers.)
+    if(mode!=='animated'){drawTimeAxesAndCurves();return;}
+    drawTimeAxesAndCurves();
+    const ball=pickTimeBall();
+    if(!ball||!ball.sol)return;
+    const t=ball.aT;
+    if(t<tPan||t>tPan+tWindow)return;          // playhead off-screen
+    const x=timeTX(t),yTop=TIME_PAD_T,yBot=TH_-TIME_PAD_B;
+    timeCtx.save();
+    timeCtx.strokeStyle='rgba(60,40,0,.4)';timeCtx.lineWidth=1;timeCtx.setLineDash([3,3]);
+    timeCtx.beginPath();timeCtx.moveTo(x,yTop);timeCtx.lineTo(x,yBot);timeCtx.stroke();
+    timeCtx.setLineDash([]);
+    const p=evalSolution(ball.sol,t);
+    if(p&&isFinite(p.x)&&isFinite(p.y)){
+      [['x','#cc4000'],['y','#3c64c8']].forEach(([k,c])=>{
+        const Y=timeVY(p[k]);
+        timeCtx.beginPath();timeCtx.arc(x,Y,4,0,2*Math.PI);
+        timeCtx.fillStyle=c;timeCtx.fill();
+        timeCtx.strokeStyle='rgba(255,255,255,.85)';timeCtx.lineWidth=1.5;timeCtx.stroke();
+      });
+    }
+    timeCtx.restore();
+  },
+  // Zoom hooks (called by the pointer/wheel wiring). factor>1 zooms IN.
+  zoom(factor,axis){
+    if(axis!=='v')tWindow=Math.max(T_WIN_MIN,Math.min(T_WIN_MAX,tWindow/factor));
+    if(axis!=='t')vHalf  =Math.max(V_HALF_MIN,Math.min(V_HALF_MAX,vHalf/factor));
+  },
+};
+
+// Active panels for the current viewMode, in draw order.
+let activePanels=[PANELS.phase];
+
+// Dispatchers: fan out to every active panel. Call these (not a panel's own
+// renderStatic/renderAnim) so all active views stay in sync.
+function renderStatic(){activePanels.forEach(p=>p.renderStatic());}
+function renderActiveAnim(){activePanels.forEach(p=>p.renderAnim());}
+function resizePanels(){activePanels.forEach(p=>p.resize());}
+
+// Switch which view(s) are shown. Sets the layout class, toggles panel
+// visibility, then resizes + redraws. Kept deliberately small: the only
+// view-specific knowledge is the panel list per mode.
+function setViewMode(v,skipRender){
+  viewMode=v;
+  const area=document.getElementById('panel-area');
+  area.classList.toggle('layout-single',v!=='both');
+  area.classList.toggle('layout-both', v==='both');
+  PANELS.phase.el.style.display=(v==='phase'||v==='both')?'':'none';
+  PANELS.time.el.style.display =(v==='time' ||v==='both')?'':'none';
+  activePanels=v==='phase'?[PANELS.phase]:v==='time'?[PANELS.time]:[PANELS.phase,PANELS.time];
+  document.querySelectorAll('.view-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+  if(skipRender)return;
+  // Layout changed → boxes have new sizes → resize then redraw (next tick, so
+  // the browser has applied the new flex layout before we measure).
+  setTimeout(()=>{resizePanels();renderStatic();renderActiveAnim();},0);
 }
 
 // ══════════════════════════════════════════════════════════
 // ANIMATION LOOP
+// Steps the simulation, then asks every active panel to draw its moving layer.
 // ══════════════════════════════════════════════════════════
 function animStep(){
   bgParticles.forEach(stepBgP);
   userBalls.forEach(stepAnimBall);
-  if(tog.axis)axisBalls.forEach(stepAnimBall);
-  renderFgAnimated();
+  renderActiveAnim();
   animID=requestAnimationFrame(animStep);
 }
 function startAnim(){if(!animID)animID=requestAnimationFrame(animStep);}
@@ -908,20 +1505,21 @@ const TYPE_LABEL={
   stable_improper:'<span class="stable">Stable improper node</span>',
   unstable_improper:'<span class="unstable">Unstable improper node</span>',
   degenerate:'<span class="degen">Degenerate</span>',
+  nilpotent:'<span class="degen">Nilpotent (shear)</span>',
   zero_matrix:'<span class="degen">Zero matrix</span>',
 };
 function f2(x){return Math.abs(x)<5e-7?'0':x.toFixed(2);}
 function fmt(x){return Math.abs(x)<5e-7?'0':x.toFixed(3);}
 
-// Behaviour text only — no eigenvalue description sentence
+// Behaviour text only - no eigenvalue description sentence
 function buildBehaviourText(p){
   switch(p.type){
     case 'stable_spiral':{const{alpha,beta}=p;
-      return `Every trajectory spirals inward to the origin, shrinking as e<sup>${f2(alpha)}t</sup> while rotating at frequency ${f2(beta)}.`;}
+      return `Every trajectory spirals inward to the origin, shrinking as e<sup>${f2(alpha)}t</sup> while rotating at angular frequency ${f2(beta)}.`;}
     case 'unstable_spiral':{const{alpha,beta}=p;
-      return `Every trajectory spirals outward from the origin, growing as e<sup>${f2(alpha)}t</sup> while rotating at frequency ${f2(beta)}.`;}
+      return `Every trajectory spirals outward from the origin, growing as e<sup>${f2(alpha)}t</sup> while rotating at angular frequency ${f2(beta)}.`;}
     case 'centre':
-      return `Every trajectory is a <b>closed ellipse</b> — neither growing nor decaying. Any perturbation that makes the trace non-zero converts every closed orbit into a spiral.`;
+      return `Every trajectory is a <b>closed ellipse</b> - neither growing nor decaying. Any perturbation that makes the trace non-zero converts every closed orbit into a spiral.`;
     case 'saddle':
       return `Trajectories converge along the <b style="color:#3c5ac8">blue eigenvector direction</b> and diverge along the <b style="color:#c84020">red</b>. Only starting points on the blue line converge to the origin.`;
     case 'stable_node':
@@ -937,13 +1535,14 @@ function buildBehaviourText(p){
     case 'unstable_star':
       return `Trajectories flow radially outward in <b>straight lines</b>, at the same rate in every direction.`;
     case 'degenerate':
-      return `Every point on the null space of M is a fixed point — a whole <b>line of equilibria</b> through the origin. All other trajectories are parallel straight lines approaching it.`;
+      return `Every point on the null space of M is a fixed point - a whole <b>line of equilibria</b> through the origin. All other trajectories are parallel straight lines approaching it.`;
+    case 'nilpotent':
+      return `Both eigenvalues are zero but M is not - a defective (<b>shear</b>) case. Trajectories are <b>straight lines</b> parallel to the single eigenvector, and points drift along them at constant velocity: x(t) = x&#8320; + t·Mx&#8320;. There is no spiralling and no decay.`;
     default:return '';
   }
 }
 
-function drawArgandDiagram(){
-  const canvas=document.getElementById('argand-cvs');
+function drawArgandDiagram(){  const canvas=document.getElementById('argand-cvs');
   if(!canvas)return;
   const ctx=canvas.getContext('2d');
   const CW=canvas.width, CH=canvas.height;
@@ -966,11 +1565,19 @@ function drawArgandDiagram(){
       pts.push({re:l,im:0,col});
     });
   }
-  // Auto-scale: find range, minimum ±1.5
+  // Auto-scale: find range, minimum ±1.5. While a drag is in progress we hold
+  // the scale fixed (argandDrag.maxV) so the dragged dot tracks the cursor
+  // instead of the axes rescaling under it.
   const vals=pts.flatMap(q=>[Math.abs(q.re),Math.abs(q.im)]);
-  const maxV=Math.max(1.5,...vals)*1.35;
+  const autoMaxV=Math.max(1.5,...vals)*1.35;
+  const maxV=(argandDrag&&argandDrag.maxV)?argandDrag.maxV:autoMaxV;
   const toX=re=>CW/2+(re/maxV)*(CW/2-PAD);
   const toY=im=>CH/2-(im/maxV)*(CH/2-PAD);
+  // Expose the transform + dot positions for the pointer/drag code.
+  argandView={CW,CH,PAD,maxV,
+    reOfX:px=>(px-CW/2)/(CW/2-PAD)*maxV,
+    imOfY:py=>-(py-CH/2)/(CH/2-PAD)*maxV,
+    dots:pts.map(q=>({re:q.re,im:q.im,x:toX(q.re),y:toY(q.im)}))};
   // Light grid
   ctx.strokeStyle='#e8e4dc';ctx.lineWidth=1;ctx.setLineDash([]);
   const step=maxV<=3?1:maxV<=7?2:5;
@@ -1009,11 +1616,151 @@ function drawArgandDiagram(){
   canvas.title=tipText;
 }
 
+// ══════════════════════════════════════════════════════════
+// ARGAND (EIGENVALUE) PLANE - dragging
+//
+// Dragging eigenvalues edits M, keeping the fine-tuning (s, ρ) fixed - exactly
+// like the TD-plane drag - via matFromTauDeltaSRho(τ, δ, s, ρ). The conjugate-
+// pair constraint (a real matrix's complex eigenvalues come as α ± iβ) is
+// handled by construction:
+//   • COMPLEX regime: one logical handle = the pair. Drag it anywhere; we read
+//     α = Re, β = |Im|, set τ = 2α, δ = α² + β². Both mirrored dots drawn.
+//   • REAL regime: two handles locked to the real axis (β = 0). Drag one; the
+//     other stays put. τ = λ_drag + λ_other, δ = λ_drag · λ_other.
+//
+// REGIME CHANGES ONLY AT POINTER-DOWN OR ON RELEASE - never mid-drag, so a
+// drag can't flip-flop under the cursor:
+//   • A separated real eigenvalue is committed-real for the whole drag, so it
+//     can be dragged through its partner without becoming complex.
+//   • Starting from an OVERLAP (two coincident reals, or a repeated root) the
+//     drag is uncommitted: it defaults to real on the first clear movement
+//     unless pulled vertically off-axis past ARG_STICK, which commits complex.
+//     Decided once, then locked (the "decide on first movement, then lock"
+//     pattern). See argandDrag.committed.
+//   • A COMPLEX drag that ENDS within ARG_STICK of the real axis snaps to a
+//     real pair ON RELEASE (handled in pointerup, not pointermove).
+// ══════════════════════════════════════════════════════════
+let argandView=null;     // {CW,CH,PAD,maxV,reOfX,imOfY,dots:[{re,im,x,y}]}
+let argandDrag=null;     // {kind:'complex'|'real', other?:number, maxV} while dragging
+const ARG_STICK=0.18;    // |Im| below this snaps to the real axis (in data units)
+
+function argandPointerPos(e){
+  const canvas=document.getElementById('argand-cvs');
+  const r=canvas.getBoundingClientRect();
+  return{px:(e.clientX-r.left)*(canvas.width/r.width),
+         py:(e.clientY-r.top)*(canvas.height/r.height)};
+}
+// Apply a dragged eigenvalue position, preserving current (s, ρ).
+function setEigenFromDrag(re,im){
+  const{s,rho}=getSRho();
+  let tau,delta;
+  if(argandDrag.kind==='complex'){
+    const alpha=re, beta=Math.abs(im);
+    tau=2*alpha; delta=alpha*alpha+beta*beta;
+  }else{
+    const other=argandDrag.other;        // the fixed real eigenvalue
+    tau=re+other; delta=re*other;
+  }
+  M=matFromTauDeltaSRho(tau,delta,s,rho);
+  setAllInputs();onMatrixChange();
+}
+document.getElementById('argand-cvs').addEventListener('pointerdown',e=>{
+  if(!argandView)return;
+  const{px,py}=argandPointerPos(e);
+  // Nearest eigenvalue dot within grab radius.
+  let hit=-1,bd=13;
+  argandView.dots.forEach((d,i)=>{const dd=Math.hypot(px-d.x,py-d.y);if(dd<bd){bd=dd;hit=i;}});
+  if(hit<0)return;
+  e.preventDefault();
+  document.getElementById('argand-cvs').setPointerCapture(e.pointerId);
+  const p=matProps();
+  if(p.evals==='complex'){
+    // Complex pair: stays complex for the whole drag (no mid-drag drop to real).
+    argandDrag={kind:'complex',committed:true,maxV:argandView.maxV,
+                downX:px,downY:py};
+  }else{
+    const dots=argandView.dots;
+    const other=dots.length>1?dots[1-hit].re:dots[0].re;
+    const grabbed=dots[hit].re;
+    // Are the two real eigenvalues effectively overlapping at grab time? Only
+    // then is a vertical pull allowed to lift the pair into the complex plane.
+    const overlapping=Math.abs(grabbed-other)<ARG_STICK;
+    argandDrag={kind:'real',other,maxV:argandView.maxV,
+                // 'committed' locks the regime: a separated real eigenvalue is
+                // committed real immediately (so dragging through its partner
+                // never flips to complex mid-drag). From an overlap it stays
+                // uncommitted until the drag direction is clear.
+                committed:!overlapping,
+                downX:px,downY:py};
+  }
+});
+document.getElementById('argand-cvs').addEventListener('pointermove',e=>{
+  const canvas=document.getElementById('argand-cvs');
+  if(!argandDrag){canvas.style.cursor='crosshair';return;}
+  const{px,py}=argandPointerPos(e);
+  let re=argandView.reOfX(px), im=argandView.imOfY(py);
+  canvas.style.cursor='crosshair';
+
+  // One-time regime decision for a drag that began on overlapping real
+  // eigenvalues: stay real unless pulled clearly off the axis. Decided once,
+  // then locked for the rest of this drag.
+  if(!argandDrag.committed){
+    const dx=px-argandDrag.downX, dy=py-argandDrag.downY;
+    const moved=Math.hypot(dx,dy);
+    const DEAD=4;                          // ignore tiny jitter
+    if(moved>=DEAD){
+      // Vertical pull that clears the stick threshold → commit complex.
+      // Anything else (horizontal split, or small vertical) → commit real.
+      if(Math.abs(im)>ARG_STICK && Math.abs(dy)>Math.abs(dx)){
+        argandDrag.kind='complex';
+      }else{
+        argandDrag.kind='real';
+      }
+      argandDrag.committed=true;
+    }else{
+      return;                              // not enough movement to decide yet
+    }
+  }
+
+  if(argandDrag.kind==='complex'){
+    argandDrag.lastIm=im;argandDrag.lastRe=re;   // remember for release-snap
+    setEigenFromDrag(re,im);                      // free in the plane; stays complex
+  }else{
+    setEigenFromDrag(re,0);                       // locked to the real axis
+  }
+});
+document.getElementById('argand-cvs').addEventListener('pointerup',e=>{
+  const canvas=document.getElementById('argand-cvs');
+  if(argandDrag){
+    // If a complex drag ended near the real axis, snap it onto the real line so
+    // the user can deliberately move a conjugate pair down into two real
+    // eigenvalues. (Regime never flips mid-drag - only here, on release.)
+    if(argandDrag.kind==='complex' && argandDrag.lastIm!=null
+       && Math.abs(argandDrag.lastIm)<ARG_STICK){
+      const{s,rho}=getSRho();
+      const re=argandDrag.lastRe;
+      M=matFromTauDeltaSRho(2*re, re*re, s, rho);  // repeated real root at re
+      setAllInputs();onMatrixChange();
+    }
+    canvas.releasePointerCapture(e.pointerId);argandDrag=null;
+  }
+  canvas.style.cursor='crosshair';
+});
+
 function updateInfo(){
   const p=matProps();
   drawArgandDiagram();
   document.getElementById('analysis-type').innerHTML=TYPE_LABEL[p.type]??p.type;
   document.getElementById('analysis-text').innerHTML=buildBehaviourText(p);
+  // Eigenvalue values as text below the Argand plane (replaces the old caption).
+  const et=document.getElementById('eigen-text');
+  if(et){
+    let s;
+    if(p.evals==='complex')      s=`λ = ${fmt(p.alpha)} ± ${fmt(p.beta)}i`;
+    else if(p.evals==='repeated')s=`λ = ${fmt(p.lambda[0])} (repeated)`;
+    else                         s=`λ₁ = ${fmt(p.lambda[0])},　λ₂ = ${fmt(p.lambda[1])}`;
+    et.textContent=s;
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1025,27 +1772,12 @@ function typesetMath(el){
     MathJax.typesetPromise([el]).catch(console.error);
   }
 }
-function eqTerm(c,varName,isFirst){
-  if(Math.abs(c)<5e-7)return'';
-  const mag=Math.abs(c);
-  const magStr=Math.abs(mag-1)<1e-6&&varName?'':mag.toFixed(2);
-  const sign=isFirst?(c<0?'-':''):(c>0?' + ':' - ');
-  return`${sign}${magStr}${varName}`;
-}
-function buildEqSystemTeX(){
-  const a=M[0][0],b=M[0][1],c=M[1][0],d=M[1][1];
-  const rhs1=(eqTerm(a,'x',true)+eqTerm(b,'y',!eqTerm(a,'x',true)))||'0';
-  const rhs2=(eqTerm(c,'x',true)+eqTerm(d,'y',!eqTerm(c,'x',true)))||'0';
-  return`\\[\\begin{aligned}\\dfrac{dx}{dt}&=${rhs1}\\\\[8pt]\\dfrac{dy}{dt}&=${rhs2}\\end{aligned}\\]`;
-}
-function updateEquations(){
-  const el=document.getElementById('eq-system');
-  el.innerHTML=buildEqSystemTeX();
-  typesetMath(el);
-}
 
 // ══════════════════════════════════════════════════════════
-// HOVER TOOLTIP — exact solution
+// CLOSED-FORM SOLUTION DISPLAY
+// Builds the TeX for x(t), y(t) and a one-line behaviour summary, shown in the
+// Analysis panel's selected-point block (see selectBall). texTerms/texLambda
+// are formatting helpers that drop ~zero coefficients and unit exponentials.
 // ══════════════════════════════════════════════════════════
 function texTerms(pairs){
   const nz=pairs.filter(([c])=>Math.abs(c)>=5e-7);
@@ -1063,9 +1795,13 @@ function buildExactSolTeX(x0,y0){
   if(!sol)return null;
   let xLine,yLine;
   switch(sol.type){
-    case 'star':{const e=texLambda(sol.lambda)||'1';xLine=`${sol.x0.toFixed(2)}\\,${e}`;yLine=`${sol.y0.toFixed(2)}\\,${e}`;break;}
+    case 'star':{const e=texLambda(sol.lambda);
+      xLine=e?`${sol.x0.toFixed(2)}\\,${e}`:`${sol.x0.toFixed(2)}`;
+      yLine=e?`${sol.y0.toFixed(2)}\\,${e}`:`${sol.y0.toFixed(2)}`;break;}
     case 'real':{
-      const e1=texLambda(sol.l1)||'1',e2=texLambda(sol.l2)||'1';
+      // Pass texLambda directly (empty for a zero eigenvalue); texTerms then
+      // renders that term as just its coefficient, with no spurious "·1".
+      const e1=texLambda(sol.l1),e2=texLambda(sol.l2);
       xLine=texTerms([[sol.Ax,e1],[sol.Bx,e2]]);yLine=texTerms([[sol.Ay,e1],[sol.By,e2]]);break;}
     case 'complex':{
       const{alpha,beta,Ax,Bx,Ay,By}=sol;
@@ -1073,14 +1809,54 @@ function buildExactSolTeX(x0,y0){
       const xi=texTerms([[Ax,cosE],[Bx,sinE]]),yi=texTerms([[Ay,cosE],[By,sinE]]);
       xLine=eE?`${eE}(${xi})`:xi;yLine=eE?`${eE}(${yi})`:yi;break;}
     case 'improper':{
-      const{lambda,Px,Qx,Py,Qy}=sol,e=texLambda(lambda)||'1';
-      xLine=`${e}(${texTerms([[Px,''],[Qx,'t']])})`;yLine=`${e}(${texTerms([[Py,''],[Qy,'t']])})`;break;}
+      const{lambda,Px,Qx,Py,Qy}=sol,e=texLambda(lambda);
+      const xb=texTerms([[Px,''],[Qx,'t']]),yb=texTerms([[Py,''],[Qy,'t']]);
+      xLine=e?`${e}(${xb})`:xb;yLine=e?`${e}(${yb})`:yb;break;}
     default:return null;
   }
   return`\\[\\begin{aligned}x(t)&=${xLine}\\\\[4pt]y(t)&=${yLine}\\end{aligned}\\]`;
 }
 
-function tipBehavText(p,sol){
+// Cartesian form of the solution CURVE (eliminating t), but only in the cases
+// where it's genuinely a nice closed form:
+//   • Line through the origin: star nodes (every orbit radial) and real-
+//     eigenvalue trajectories that lie on a single eigenvector (one modal
+//     coefficient ~0). Form y = m x, or x = 0 for a vertical eigenvector.
+//   • Ellipse: centres. The quadratic H = c x² − (a−d) xy − b y² is conserved
+//     (verified: dH/dt = 0 when trace = 0), so the orbit is that conic through
+//     the start point.
+// Saddles / general nodes give power-law curves (y ∝ x^(λ₂/λ₁)) and spirals are
+// not algebraic, so we return null (nothing shown) for those.
+function cartesianForm(sol,x0,y0,p){
+  if(!sol)return null;
+  const fmtC=v=>{const r=+v.toFixed(2);return r;};
+  // A line through the origin: y = m x, or x = 0 (vertical), or y = 0 (horizontal).
+  const lineThrough=(x,y)=>{
+    if(Math.abs(x)<1e-9)return`\\[x = 0\\]`;
+    const m=y/x;
+    if(Math.abs(m)<1e-9)return`\\[y = 0\\]`;
+    return`\\[y = ${fmtC(m)}\\,x\\]`;
+  };
+  if(sol.type==='star')return lineThrough(x0,y0);
+  if(sol.type==='real'){
+    // On an eigenvector if one modal coefficient is ~0 (then x,y stay
+    // proportional to that eigenvector for all t).
+    const onB=Math.hypot(sol.Ax,sol.Ay)<1e-6, onA=Math.hypot(sol.Bx,sol.By)<1e-6;
+    if(onA||onB)return lineThrough(x0,y0);
+    return null;   // generic node/saddle orbit: power law, not shown
+  }
+  // Centre: ellipse via the conserved quadratic.
+  if(p&&p.type==='centre'){
+    const a=M[0][0],b=M[0][1],c=M[1][0],d=M[1][1];
+    const A=c, B=-(a-d), C=-b;                 // H = A x² + B xy + C y²
+    const H=A*x0*x0+B*x0*y0+C*y0*y0;
+    const t=texTerms([[A,'x^2'],[B,'xy'],[C,'y^2']]);
+    return`\\[${t} = ${fmtC(H)}\\]`;
+  }
+  return null;
+}
+
+function behaviourSummary(p,sol){
   switch(p.type){
     case 'stable_spiral':   return'Spirals inward to the origin';
     case 'unstable_spiral': return'Spirals outward from the origin';
@@ -1093,43 +1869,75 @@ function tipBehavText(p,sol){
       if(sol&&sol.type==='real'){
         const unstIdx=p.lambda[0]>0?0:1;
         const A=unstIdx===0?sol.Ax:sol.Bx,C=unstIdx===0?sol.Ay:sol.By;
-        if(Math.hypot(A,C)<0.02)return'On the stable manifold — converges to the origin';
+        if(Math.hypot(A,C)<0.02)return'On the stable manifold: converges to the origin';
       }
       return'Escapes to infinity';
     }
     case 'degenerate':return'Moves toward the nearest equilibrium on the fixed line';
+    case 'nilpotent':return'Drifts along a straight line at constant velocity';
     default:return'';
   }
 }
 
-function showBallTooltip(ballIdx){
-  if(dragBall>=0)return;
-  const ball=userBalls[ballIdx];
-  const tip=document.getElementById('sol-tooltip');
-  const box=document.getElementById('cvs-box');
-  const wrap=document.getElementById('cvs-wrap');
-  const boxRect=box.getBoundingClientRect();
-  const wrapRect=wrap.getBoundingClientRect();
-  const scX=boxRect.width/W,scY=boxRect.height/H;
-  const cssX=(boxRect.left-wrapRect.left)+wx(ball.seed.x)*scX;
-  const cssY=(boxRect.top-wrapRect.top)+wy(ball.seed.y)*scY;
-  tip.querySelector('.tip-seed').textContent=`x₀ = (${ball.seed.x.toFixed(2)},  ${ball.seed.y.toFixed(2)})`;
-  const mathDiv=tip.querySelector('.tip-math');
+// Populate the Point analysis section with the exact solution and qualitative
+// behaviour for one selected starting point. Position-independent (no floating
+// tooltip), and kept separate from System analysis so per-trajectory facts and
+// per-system facts don't compete for the same space.
+// Render the Point analysis block for a specific ball.
+function showPointAnalysis(ball){
+  document.getElementById('sel-seed').innerHTML=
+    `Initial condition&nbsp;&nbsp;x = ${ball.seed.x.toFixed(2)},&nbsp;&nbsp;y = ${ball.seed.y.toFixed(2)}`;
+  const mathDiv=document.getElementById('sel-math');
   const solTex=buildExactSolTeX(ball.seed.x,ball.seed.y);
   mathDiv.innerHTML=solTex||'<em style="color:#a09070">Solution unavailable</em>';
   const p=matProps(),sol=exactSolution(ball.seed.x,ball.seed.y);
-  tip.querySelector('.tip-behav').textContent=tipBehavText(p,sol);
-  tip.style.display='block';
-  const TW=tip.offsetWidth||300,TH=tip.offsetHeight||150;
-  const WW=wrapRect.width,WH=wrapRect.height,PAD=18;
-  let left=cssX+PAD,top=cssY-TH/2;
-  if(left+TW+4>WW)left=cssX-TW-PAD;
-  left=Math.max(4,Math.min(WW-TW-4,left));
-  top=Math.max(4,Math.min(WH-TH-4,top));
-  tip.style.left=left+'px';tip.style.top=top+'px';
+  // Cartesian form of the curve, only when tractable (line / centre ellipse).
+  const cartDiv=document.getElementById('sel-cartesian');
+  const cart=cartesianForm(sol,ball.seed.x,ball.seed.y,p);
+  if(cart){
+    cartDiv.innerHTML=`<div class="sel-sublabel">Path (Cartesian form):</div>${cart}`;
+    cartDiv.style.display='';
+  }else{
+    cartDiv.style.display='none';cartDiv.innerHTML='';
+  }
+  document.getElementById('sel-behav').textContent=behaviourSummary(p,sol);
+  document.getElementById('sel-empty').style.display='none';
+  document.getElementById('sel-point').style.display='block';
   typesetMath(mathDiv);
+  if(cart)typesetMath(cartDiv);
 }
-function hideBallTooltip(){document.getElementById('sol-tooltip').style.display='none';}
+function selectBall(ballIdx){
+  const ball=userBalls[ballIdx];
+  if(!ball){clearSelection();return;}
+  showPointAnalysis(ball);
+  // Open Point analysis so the selection is visible even if collapsed.
+  document.getElementById('sec-point-analysis').open=true;
+  refreshTimeIfNeeded();
+}
+function clearSelection(){
+  // With no explicit selection, Point analysis falls back to the trajectory the
+  // time view is plotting (pickTimeBall) so the two panels agree; only truly
+  // empty when there are no balls at all.
+  const fallback=pickTimeBall();
+  if(fallback){showPointAnalysis(fallback);}
+  else{
+    document.getElementById('sel-point').style.display='none';
+    document.getElementById('sel-empty').style.display='';
+  }
+  refreshTimeIfNeeded();
+}
+// The time panel shows pickTimeBall(), which changes when the selection or the
+// ball set changes. In animated mode the loop redraws it every frame; in trails
+// mode nothing else would, so refresh it here. Cheap no-op if time isn't shown.
+function refreshTimeIfNeeded(){
+  if(mode!=='animated'&&activePanels.includes(PANELS.time))PANELS.time.renderStatic();
+}
+// Refresh the selected-point block if a ball is currently selected - called
+// after a matrix change so the displayed solution stays in sync.
+function refreshSelection(){
+  if(selectedBall>=0&&selectedBall<userBalls.length)selectBall(selectedBall);
+  else clearSelection();
+}
 
 // ══════════════════════════════════════════════════════════
 // INPUT SYNC
@@ -1163,17 +1971,14 @@ function readCDEInputs(){
 // MATRIX CHANGE HANDLER
 // ══════════════════════════════════════════════════════════
 function onMatrixChange(){
-  recomputeAxisBalls();
   userBalls.forEach((_,i)=>recomputeBallTrail(i));
-  renderBg();
   if(mode==='animated'){
     bgParticles.forEach(p=>{p.trail=[];});
-    userBalls.forEach(b=>{b.aTrail=[];b.ax=b.seed.x;b.ay=b.seed.y;b.aAge=0;b.stuckFrames=0;});
-    axisBalls.forEach(b=>{b.aTrail=[];b.ax=b.seed.x;b.ay=b.seed.y;b.aAge=0;b.stuckFrames=0;});
-  }else{
-    renderFg(); // redraws trails
+    userBalls.forEach(b=>{b.aTrail=[];b.ax=b.seed.x;b.ay=b.seed.y;b.aT=0;});
   }
-  updateSRhoSliders();drawTDPanel();updateInfo();tooltipBall=-1;hideBallTooltip();
+  renderStatic();          // redraws every active panel's static layer
+  renderActiveAnim();      // and the moving layer (no-op clear in trails)
+  updateSRhoSliders();drawTDPanel();updateInfo();refreshSelection();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1188,43 +1993,40 @@ function updateHelp(){
   }
 }
 
-let tooltipBall=-1;
-
 function setMode(m){
   mode=m;
   document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
-  document.getElementById('row-bwd').style.display=m==='trails'?'':'none';
   document.getElementById('speed-row').style.display=m==='trails'?'none':'';
-  hideBallTooltip();tooltipBall=-1;
+  clearSelection();selectedBall=-1;
   updateHelp();
   if(m==='trails'){
-    stopAnim();renderBg();renderFg();
+    stopAnim();renderStatic();renderActiveAnim();
   }else{
     initBgParticles();
-    userBalls.forEach(b=>{b.ax=b.seed.x;b.ay=b.seed.y;b.aTrail=[];b.aAge=0;b.stuckFrames=0;});
-    axisBalls.forEach(b=>{b.ax=b.seed.x;b.ay=b.seed.y;b.aTrail=[];b.aAge=0;b.stuckFrames=0;});
-    renderBg();
+    userBalls.forEach(b=>{b.ax=b.seed.x;b.ay=b.seed.y;b.aTrail=[];b.aT=0;});
+    renderStatic();
     startAnim();
   }
 }
 
 // ══════════════════════════════════════════════════════════
-// POINTER EVENTS — canvas
+// POINTER EVENTS - canvas
 // ══════════════════════════════════════════════════════════
 function pointerMath(e){
   const r=fgCvs.getBoundingClientRect();
   return{mx:cw((e.clientX-r.left)*W/r.width),my:ch((e.clientY-r.top)*H/r.height)};
 }
 fgCvs.addEventListener('pointerdown',e=>{
+  if(pinching)return;            // a two-finger gesture owns the canvas
   const{mx,my}=pointerMath(e);
   const idx=findNearestBall(mx,my);
   // Shift-click: remove ball immediately, no drag
   if(e.shiftKey&&idx>=0){
     userBalls.splice(idx,1);
-    if(tooltipBall===idx)tooltipBall=-1;
-    else if(tooltipBall>idx)tooltipBall--;
-    hideBallTooltip();hoverBall=-1;
-    if(mode==='trails')renderBg();
+    if(selectedBall===idx)selectedBall=-1;
+    else if(selectedBall>idx)selectedBall--;
+    clearSelection();hoverBall=-1;
+    if(mode==='trails')renderStatic();
     return;
   }
   fgCvs.setPointerCapture(e.pointerId);
@@ -1232,44 +2034,140 @@ fgCvs.addEventListener('pointerdown',e=>{
   else{
     userBalls.push(createBall(mx,my));
     dragBall=userBalls.length-1;dragHasMoved=false;ballWasNew=true;
-    if(mode==='trails')renderBg();
+    if(mode==='trails')renderStatic();
   }
 });
 fgCvs.addEventListener('pointermove',e=>{
+  if(pinching)return;
   const{mx,my}=pointerMath(e);
   if(dragBall>=0){
     dragHasMoved=true;
     const ball=userBalls[dragBall];ball.seed={x:mx,y:my};
-    const t=integrate(mx,my);ball.fwd=t.fwd;ball.bwd=t.bwd;
-    if(mode==='animated'){ball.ax=mx;ball.ay=my;ball.aTrail=[];ball.aAge=0;ball.stuckFrames=0;}
-    else renderBg();
+    ball.sol=exactSolution(mx,my);
+    ball.fwd=analyticTrail(ball.sol,TRAJ_T_MAX,240);
+    ball.bwd=analyticTrail(ball.sol,-TRAJ_T_MAX,240);
+    if(mode==='animated'){ball.ax=mx;ball.ay=my;ball.aTrail=[];ball.aT=0;}
+    else renderStatic();
+    // Live-update Point analysis as the active point moves, and mark it active.
+    if(selectedBall!==dragBall)selectedBall=dragBall;
+    showPointAnalysis(ball);
     fgCvs.style.cursor='grabbing';
   }else{
     const idx=findNearestBall(mx,my);
-    if(idx!==hoverBall){hoverBall=idx;if(mode==='trails')renderBg();}
+    if(idx!==hoverBall){hoverBall=idx;if(mode==='trails')renderStatic();}
     fgCvs.style.cursor=idx>=0?'grab':'crosshair';
   }
 });
 fgCvs.addEventListener('pointerup',e=>{
   if(dragBall<0)return;
   fgCvs.releasePointerCapture(e.pointerId);
-  if(!dragHasMoved&&!ballWasNew){
-    // Click on existing ball: toggle tooltip
-    if(tooltipBall===dragBall){
-      tooltipBall=-1;hideBallTooltip();
-    }else{
-      tooltipBall=dragBall;showBallTooltip(dragBall);
-    }
-  }else if(dragHasMoved){
-    // Finished drag: update tooltip if this ball had it shown
-    if(tooltipBall===dragBall)showBallTooltip(dragBall);
-  }
+  // Snapshot the gesture, then clear drag state, THEN act on it. Distinguishing
+  // a click (select/deselect) from a drag (reposition) and from a fresh
+  // placement (ballWasNew, leave selected as-is) depends on flags that the next
+  // pointerdown would otherwise clobber.
+  const idx=dragBall, moved=dragHasMoved, wasNew=ballWasNew;
   dragBall=-1;ballWasNew=false;fgCvs.style.cursor='crosshair';
+  if(!moved&&!wasNew){
+    // Click on an existing point: toggle its solution display.
+    if(selectedBall===idx){
+      selectedBall=-1;clearSelection();
+    }else{
+      selectedBall=idx;selectBall(idx);
+    }
+  }else if(moved&&selectedBall===idx){
+    // Finished dragging the selected point: refresh its (now different) solution.
+    selectBall(idx);
+  }else if(wasNew){
+    // Freshly placed point becomes the most-recent. Refresh so Point analysis
+    // and the time view feature it (no explicit select).
+    refreshSelection();
+  }
 });
-fgCvs.addEventListener('pointerleave',()=>{hoverBall=-1;if(mode==='trails')renderBg();});
 
 // ══════════════════════════════════════════════════════════
-// POINTER EVENTS — TD plane
+// MULTI-TOUCH (pinch to zoom, two-finger drag to pan)
+//
+// Needed for touch-only devices: zoom is otherwise wheel-only, which a
+// touchscreen never fires. We track raw touch events ourselves (touch-action
+// is 'none' on .cvs-box, so the browser does no zoom/scroll of its own). While
+// `pinching` is true the single-touch pointer handlers above bail, so a second
+// finger landing can't be mistaken for placing/dragging a point.
+//   Phase canvas: pinch = zoom about the centre (the phase origin is fixed at
+//     centre, so there is no pan to anchor to - matches the wheel behaviour).
+//   Time canvas:  pinch = zoom both axes; the gesture's centroid drift also
+//     pans (the time panel has tPan/vCenter, so two-finger drag pans naturally).
+// ══════════════════════════════════════════════════════════
+let pinching=false;
+function touchDist(t){return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);}
+function touchMid(t){return{x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2};}
+
+// Phase canvas pinch (zoom only).
+let pinchD0=0;
+fgCvs.addEventListener('touchstart',e=>{
+  if(e.touches.length===2){
+    e.preventDefault();
+    // If the first finger already created/grabbed a ball, undo that: a fresh
+    // ball placed by touch #1 shouldn't survive turning the gesture into a pinch.
+    if(dragBall>=0){
+      if(ballWasNew)userBalls.splice(dragBall,1);
+      dragBall=-1;ballWasNew=false;
+      renderStatic();
+    }
+    pinching=true;pinchD0=touchDist(e.touches);
+  }
+},{passive:false});
+fgCvs.addEventListener('touchmove',e=>{
+  if(pinching&&e.touches.length===2){
+    e.preventDefault();
+    const d=touchDist(e.touches);
+    if(pinchD0>0){zoomPhase(d/pinchD0);pinchD0=d;}
+  }
+},{passive:false});
+function endPhasePinch(e){
+  if(pinching&&e.touches.length<2){pinching=false;pinchD0=0;}
+}
+fgCvs.addEventListener('touchend',endPhasePinch);
+fgCvs.addEventListener('touchcancel',endPhasePinch);
+
+// Time canvas pinch (zoom both axes) + two-finger pan.
+let tPinchD0=0,tMid0=null;
+timeCvs.addEventListener('touchstart',e=>{
+  if(e.touches.length===2){
+    e.preventDefault();
+    pinching=true;tPinchD0=touchDist(e.touches);tMid0=touchMid(e.touches);
+  }
+},{passive:false});
+timeCvs.addEventListener('touchmove',e=>{
+  if(pinching&&e.touches.length===2){
+    e.preventDefault();
+    const d=touchDist(e.touches), mid=touchMid(e.touches);
+    const r=timeCvs.getBoundingClientRect();
+    // Zoom both axes by the pinch ratio.
+    if(tPinchD0>0){
+      const f=d/tPinchD0;
+      tWindow=Math.max(T_WIN_MIN,Math.min(T_WIN_MAX,tWindow/f));
+      vHalf  =Math.max(V_HALF_MIN,Math.min(V_HALF_MAX,vHalf/f));
+      tPinchD0=d;
+    }
+    // Pan by the centroid drift (convert pixel delta to data units).
+    if(tMid0){
+      const wPlot=TW_-TIME_PAD_L-TIME_PAD_R, hPlot=TH_-TIME_PAD_T-TIME_PAD_B;
+      const dt=((mid.x-tMid0.x)*(TW_/r.width))/wPlot*tWindow;
+      const dv=((mid.y-tMid0.y)*(TH_/r.height))/(hPlot/2)*vHalf;
+      tPan-=dt;vCenter+=dv;tMid0=mid;
+    }
+    renderStatic();renderActiveAnim();
+  }
+},{passive:false});
+function endTimePinch(e){
+  if(pinching&&e.touches.length<2){pinching=false;tPinchD0=0;tMid0=null;}
+}
+timeCvs.addEventListener('touchend',endTimePinch);
+timeCvs.addEventListener('touchcancel',endTimePinch);
+fgCvs.addEventListener('pointerleave',()=>{hoverBall=-1;if(mode==='trails')renderStatic();});
+
+// ══════════════════════════════════════════════════════════
+// POINTER EVENTS - TD plane
 // ══════════════════════════════════════════════════════════
 function tdPointerToMatrix(e){
   const tdCvs=document.getElementById('td-cvs');
@@ -1314,7 +2212,20 @@ document.querySelectorAll('.imode-btn').forEach(btn=>{
     readCDEInputs();syncMatrixInputs();updateSRhoSliders();onMatrixChange();
   });
 });
-// Presets — does NOT clear user balls
+// Scroll wheel over a matrix/equation number input adjusts its value (by step)
+// rather than scrolling the sidebar. preventDefault + stopPropagation keep the
+// wheel from bubbling to the panel scroll. The dispatched 'input' event runs the
+// normal change handlers above.
+document.querySelectorAll('.mat-in,.cde-in').forEach(inp=>{
+  inp.addEventListener('wheel',e=>{
+    e.preventDefault();e.stopPropagation();
+    const step=parseFloat(inp.step)||0.1;
+    const cur=parseFloat(inp.value)||0;
+    inp.value=(cur+(e.deltaY<0?step:-step)).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1');
+    inp.dispatchEvent(new Event('input',{bubbles:true}));
+  },{passive:false});
+});
+// Presets - does NOT clear user balls
 PRESETS.forEach((p,i)=>{
   const opt=document.createElement('option');opt.value=i;opt.textContent=p.name;
   document.getElementById('presets').appendChild(opt);
@@ -1342,32 +2253,217 @@ document.getElementById('sl-speed').addEventListener('input',e=>{
   const val=speedFactor===0?'Paused':`${speedFactor}×`;
   document.getElementById('sl-speed-val').textContent=val;
 });
-// Zoom
-function applyZoom(f){SC=Math.max(SC_MIN,Math.min(SC_MAX,SC*f));renderBg();if(mode==='trails')renderFg();}
-document.getElementById('zoom-in' ).addEventListener('click',()=>applyZoom(1.25));
-document.getElementById('zoom-out').addEventListener('click',()=>applyZoom(1/1.25));
-fgCvs.addEventListener('wheel',e=>{e.preventDefault();applyZoom(e.deltaY<0?1.15:1/1.15);},{passive:false});
+// ZOOM - each panel zooms independently.
+// Phase plane: SC. Time panel: tWindow / vHalf (handled in its wheel/drag wiring).
+function zoomPhase(f){
+  SC=Math.max(SC_MIN,Math.min(SC_MAX,SC*f));
+  // Trail extent depends on the visible region (trailCutoffR), so regenerate
+  // trajectories when the zoom changes, otherwise they'd keep the old extent.
+  userBalls.forEach((_,i)=>recomputeBallTrail(i));
+  renderStatic();renderActiveAnim();
+}
+
+// Wheel over the phase canvas → phase zoom, keeping the point under the cursor
+// fixed (focal-point zoom) so the view doesn't drift away from the mouse.
+fgCvs.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const f=e.deltaY<0?1.15:1/1.15;
+  const{mx,my}=pointerMath(e);          // world coords under cursor
+  zoomPhase(f);
+  // After SC changes, shift origin so (mx,my) stays under the same screen px.
+  // (Phase origin is fixed at centre; we emulate focal zoom by nudging - but
+  //  the phase plane has no pan offset, so we accept centre-anchored zoom here.)
+},{passive:false});
+// Wheel over the time canvas → time zoom about the pointer (focal point), so
+// the curve under the cursor stays put. Shift = time axis only, Alt = value
+// only; plain wheel zooms both. (Axis-margin DRAG is the other way to scale a
+// single axis - see the pointer handlers below.)
+timeCvs.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const f=e.deltaY<0?1.15:1/1.15;
+  const axis=e.shiftKey?'t':e.altKey?'v':null;
+  const{px,py}=timePointerPos(e);
+  const tAt=tPan+((px-TIME_PAD_L)/(TW_-TIME_PAD_L-TIME_PAD_R))*tWindow;   // t under cursor
+  const vAt=timeYToV(py);                                                  // value under cursor
+  PANELS.time.zoom(f,axis);
+  // Re-anchor so (tAt,vAt) stays under the cursor after the scale change.
+  if(axis!=='v'){
+    const frac=(px-TIME_PAD_L)/(TW_-TIME_PAD_L-TIME_PAD_R);
+    tPan=tAt-frac*tWindow;
+  }
+  if(axis!=='t'){
+    const h=TH_-TIME_PAD_T-TIME_PAD_B;
+    vCenter=vAt-((TIME_PAD_T+h/2-py)/(h/2))*vHalf;
+  }
+  renderStatic();renderActiveAnim();
+},{passive:false});
+// Pointer interaction on the time canvas. Priority:
+//   1. x0/y0 handle on the t=0 line  → drag to set initial condition
+//   2. drag in the BOTTOM margin      → stretch/compress the TIME axis (GeoGebra
+//      style: grab the axis and pull it). Drag right = zoom in.
+//   3. drag in the LEFT margin        → stretch/compress the VALUE axis
+//   4. drag in the plot interior      → pan both axes
+let timePanning=false,timeDragHandle=null,timeAxisDrag=null,tpx=0,tpy=0,axisGrab=null;
+function timePointerPos(e){
+  const r=timeCvs.getBoundingClientRect();
+  return{px:(e.clientX-r.left)*(TW_/r.width), py:(e.clientY-r.top)*(TH_/r.height)};
+}
+// Which region is the pointer in (for choosing the gesture)?
+// The grab-bands sit ON the axis lines (timeAxes.yAxis for the time axis,
+// timeAxes.xT0 for the value axis) and move with the pan, rather than being
+// pinned to the viewport edge. Grab the axis itself and stretch it (rubber-band
+// analogy). Within the plot, value-axis band takes priority where they cross.
+const AXIS_BAND=14;   // half-thickness of the grab-band straddling an axis line
+function timeRegion(px,py){
+  if(!timeAxes)return 'plot';
+  const{yAxis,xT0,x0,x1,yTop,yBot}=timeAxes;
+  const inPlotX = px>=x0-8 && px<=x1+8;
+  const inPlotY = py>=yTop-8 && py<=yBot+8;
+  // Value (vertical) axis band first: straddles the t=0 line, but only if that
+  // line is actually in view.
+  if(xT0>=x0-0.5 && xT0<=x1+0.5 && Math.abs(px-xT0)<=AXIS_BAND && inPlotY) return 'vaxis';
+  // Time (horizontal) axis band: straddles the v=0 line.
+  if(Math.abs(py-yAxis)<=AXIS_BAND && inPlotX) return 'taxis';
+  return 'plot';
+}
+// Which handle (if any) is under the pointer.
+function hitTimeHandle(px,py){
+  if(!timeHandles)return null;
+  if(Math.abs(px-timeHandles.xPix)>10)return null;
+  if(Math.abs(py-timeHandles.x0.y)<=9)return 'x';
+  if(Math.abs(py-timeHandles.y0.y)<=9)return 'y';
+  return null;
+}
+// Move the picked ball's initial condition; mirrors the phase-plane drag path
+// (recompute solution + trails, refresh everything) so both views stay in sync.
+function setPickedSeed(newX,newY){
+  const ball=pickTimeBall();if(!ball)return;
+  ball.seed={x:newX,y:newY};
+  ball.sol=exactSolution(newX,newY);
+  ball.fwd=analyticTrail(ball.sol,TRAJ_T_MAX,240);
+  ball.bwd=analyticTrail(ball.sol,-TRAJ_T_MAX,240);
+  if(mode==='animated'){ball.ax=newX;ball.ay=newY;ball.aTrail=[];ball.aT=0;}
+  const idx=userBalls.indexOf(ball);
+  if(idx===selectedBall)selectBall(idx);
+  renderStatic();renderActiveAnim();
+}
+timeCvs.addEventListener('pointerdown',e=>{
+  if(pinching)return;            // two-finger gesture owns the canvas
+  const{px,py}=timePointerPos(e);
+  timeCvs.setPointerCapture(e.pointerId);
+  const h=hitTimeHandle(px,py);
+  if(h){
+    timeDragHandle=h;timeCvs.style.cursor='ns-resize';
+    if(!pickTimeBall()){userBalls.push(createBall(0.01,0.01));selectedBall=userBalls.length-1;}
+    return;
+  }
+  // Axis stretch-zoom requires SHIFT: this avoids accidentally zooming when the
+  // user meant to drag an initial-condition handle or pan near an axis. Plain
+  // drag always pans, wherever it starts.
+  const region=e.shiftKey?timeRegion(px,py):'plot';
+  if(region==='taxis'){
+    timeAxisDrag='t';timeCvs.style.cursor='ew-resize';
+    // Record the data value grabbed and where t=0 is on screen, so the stretch
+    // keeps the grabbed value under the cursor with t=0 pinned (see pointermove).
+    axisGrab={val:tPan+((px-TIME_PAD_L)/(TW_-TIME_PAD_L-TIME_PAD_R))*tWindow, origin:timeTX(0)};
+  }
+  else if(region==='vaxis'){
+    timeAxisDrag='v';timeCvs.style.cursor='ns-resize';
+    axisGrab={val:timeYToV(py), origin:timeVY(0)};
+  }
+  else{timePanning=true;tpx=e.clientX;tpy=e.clientY;timeCvs.style.cursor='grabbing';}
+});
+timeCvs.addEventListener('pointermove',e=>{
+  if(pinching)return;
+  if(timeDragHandle){
+    const{py}=timePointerPos(e);
+    const v=timeYToV(py);
+    const ball=pickTimeBall();if(!ball)return;
+    if(timeDragHandle==='x')setPickedSeed(v,ball.seed.y);
+    else setPickedSeed(ball.seed.x,v);
+    return;
+  }
+  if(timeAxisDrag){
+    // Stretch model (standard graphing behaviour): the data value grabbed at
+    // pointerdown stays under the cursor, while the origin (t=0 / v=0) stays
+    // pinned. This makes "drag away from the origin = stretch" work correctly on
+    // BOTH sides: scale = (cursor distance from origin) / (grab distance from
+    // origin), so dragging the grabbed tick further from the origin spreads the
+    // axis and dragging it toward the origin compresses it, regardless of side.
+    if(!axisGrab)return;
+    const{px,py}=timePointerPos(e);
+    if(timeAxisDrag==='t'){
+      if(Math.abs(axisGrab.val)<1e-6)return;       // grabbed ~origin: nothing to scale by
+      const w=TW_-TIME_PAD_L-TIME_PAD_R;
+      // We want timeTX(grab.val) == px with t=0 pinned. timeTX(0)=origin fixed,
+      // and timeTX(v)=origin + (v/tWindow)*w. So required tWindow = grab.val*w/(px-origin).
+      const denom=px-axisGrab.origin;
+      if(Math.abs(denom)<2)return;                 // avoid blow-up near the origin
+      let tw=axisGrab.val*w/denom;
+      if(tw>0){                                    // keep sign sane
+        tWindow=Math.max(T_WIN_MIN,Math.min(T_WIN_MAX,tw));
+        tPan=-(axisGrab.origin-TIME_PAD_L)/w*tWindow; // keep t=0 at the same screen x
+      }
+    }else{
+      if(Math.abs(axisGrab.val)<1e-6)return;
+      const h=TH_-TIME_PAD_T-TIME_PAD_B, half=h/2;
+      // timeVY(v)=PAD_T+half-((v-vCenter)/vHalf)*half. With v=0 pinned at origin:
+      // origin=PAD_T+half+(vCenter/vHalf)*half; want timeVY(grab.val)==py.
+      const denom=axisGrab.origin-py;
+      if(Math.abs(denom)<2)return;
+      let vh=axisGrab.val*half/denom;
+      if(vh>0){
+        vHalf=Math.max(V_HALF_MIN,Math.min(V_HALF_MAX,vh));
+        vCenter=(axisGrab.origin-(TIME_PAD_T+half))/half*vHalf;
+      }
+    }
+    renderStatic();renderActiveAnim();
+    return;
+  }
+  if(!timePanning){
+    // Hover cursor hints: handle first; axis stretch-cursor only while Shift is
+    // held (since axis zoom now requires Shift); otherwise pan.
+    const{px,py}=timePointerPos(e);
+    const h=hitTimeHandle(px,py);
+    if(h)timeCvs.style.cursor='ns-resize';
+    else if(e.shiftKey){
+      const region=timeRegion(px,py);
+      timeCvs.style.cursor=region==='taxis'?'ew-resize':region==='vaxis'?'ns-resize':'grab';
+    }
+    else timeCvs.style.cursor='grab';
+    return;
+  }
+  const r=timeCvs.getBoundingClientRect();
+  const wPlot=TW_-TIME_PAD_L-TIME_PAD_R, hPlot=TH_-TIME_PAD_T-TIME_PAD_B;
+  const dt=((e.clientX-tpx)*(TW_/r.width))/wPlot*tWindow;
+  const dv=((e.clientY-tpy)*(TH_/r.height))/(hPlot/2)*vHalf;
+  tPan-=dt;vCenter+=dv;
+  tpx=e.clientX;tpy=e.clientY;
+  renderStatic();renderActiveAnim();
+});
+timeCvs.addEventListener('pointerup',e=>{
+  timePanning=false;timeDragHandle=null;timeAxisDrag=null;axisGrab=null;
+  timeCvs.releasePointerCapture(e.pointerId);timeCvs.style.cursor='grab';
+});
+// View switch
+document.querySelectorAll('.view-btn').forEach(b=>
+  b.addEventListener('click',()=>setViewMode(b.dataset.view)));
 // Display toggles
-[['t-field','field'],['t-eigen','eigen'],['t-null','nullclines']].forEach(([id,key])=>{
+[['t-field','field'],['t-eigen','eigen'],['t-null','nullclines'],['t-bold','bold']].forEach(([id,key])=>{
   document.getElementById(id).addEventListener('change',e=>{
-    tog[key]=e.target.checked;renderBg();if(mode==='trails')renderFg();
+    tog[key]=e.target.checked;renderStatic();renderActiveAnim();
   });
 });
 document.getElementById('t-bwd').addEventListener('change',e=>{
-  tog.bwd=e.target.checked;renderBg();if(mode==='trails')renderFg();
-});
-document.getElementById('t-axis').addEventListener('change',e=>{
-  tog.axis=e.target.checked;
-  document.getElementById('axis-opts').style.display=tog.axis?'block':'none';
-  renderBg();
+  tog.bwd=e.target.checked;renderStatic();renderActiveAnim();
 });
 // Clear button
 document.getElementById('clear-btn').addEventListener('click',()=>{
-  userBalls=[];tooltipBall=-1;hideBallTooltip();renderBg();
+  userBalls=[];selectedBall=-1;clearSelection();renderStatic();renderActiveAnim();
 });
-// Resize observer
-new ResizeObserver(()=>{updateCanvasSize();renderBg();if(mode==='trails')renderFg();})
-  .observe(document.getElementById('cvs-box'));
+// Resize observer - watches the panel area, resizes + redraws all active panels.
+new ResizeObserver(()=>{resizePanels();renderStatic();renderActiveAnim();})
+  .observe(document.getElementById('panel-area'));
 
 // Sidebar toggle
 document.getElementById('sidebar-toggle').addEventListener('click',()=>{
@@ -1375,21 +2471,84 @@ document.getElementById('sidebar-toggle').addEventListener('click',()=>{
   const btn=document.getElementById('sidebar-toggle');
   btn.textContent=hidden?'▶':'◀';
   btn.title=hidden?'Show panel':'Hide panel';
-  setTimeout(()=>{updateCanvasSize();renderBg();if(mode==='trails')renderFg();},220);
+  setTimeout(()=>{resizePanels();renderStatic();renderActiveAnim();},220);
 });
 
 // ══════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════
 (function init(){
-  M=PRESETS[0].M.map(r=>[...r]);
+  // Initial matrix: from ?m=a,b,c,d (row-major [[a,b],[c,d]], matching the
+  // matrix-explorer apps, e.g. ?m=-1,1,3,-2 → [[-1,1],[3,-2]]) if present and
+  // valid; otherwise the first preset.
+  let usedURL=false;
+  try{
+    const mp=new URLSearchParams(location.search).get('m');
+    if(mp){
+      const v=mp.split(',').map(Number);
+      if(v.length===4&&v.every(Number.isFinite)){
+        M=[[v[0],v[1]],[v[2],v[3]]];usedURL=true;
+      }
+    }
+  }catch(e){/* fall through to preset */}
+  if(!usedURL)M=PRESETS[0].M.map(r=>[...r]);
   setAllInputs();
-  document.getElementById('presets').value='0';
-  document.getElementById('row-bwd').style.display='none';
+  document.getElementById('presets').value=usedURL?'':'0';
+  setViewMode('phase',true);     // set layout + active panels, defer first paint
   setTimeout(()=>{
-    updateCanvasSize();initBgParticles();initAxisBalls();
-    renderBg();drawTDPanel();updateInfo();updateHelp();startAnim();
+    resizePanels();initBgParticles();
+    renderStatic();renderActiveAnim();drawTDPanel();updateInfo();updateHelp();startAnim();
   },50);
+})();
+// ══════════════════════════════════════════════════════════
+// CUSTOM TOOLTIPS (data-tip) - richer than native title=, so we can lay out
+// 2x2 matrices with proper brackets. Shown on hover/focus of any [data-tip].
+// ══════════════════════════════════════════════════════════
+const TIP_HTML={
+  'tuning-summary':
+    `<b>Fine tuning</b><div class="tip-p">Move through matrices with the same trace and determinant (eigenvalues barely change) but different eigenvectors - reshaping the flow without changing its type.</div>`,
+  'tuning-s':
+    `<b>Diagonal split (s)</b>`+
+    `<div class="tip-p">Adds a multiple of this basis matrix to M:</div>`+
+    matrixTip([['+1','0'],['0','-1']],'s')+
+    `<div class="tip-p">So the diagonal becomes a = τ/2 + s, d = τ/2 − s. The off-diagonal then adjusts automatically to keep the determinant fixed.</div>`,
+  'tuning-rho':
+    `<b>Rotation (ρ)</b>`+
+    `<div class="tip-p">Adds a multiple of this (rotational) basis matrix to M:</div>`+
+    matrixTip([['0','+1'],['-1','0']],'ρ')+
+    `<div class="tip-p">Combined with the symmetric off-diagonal needed to hold the determinant fixed, this gives b = σ + ρ, c = σ − ρ.</div>`,
+};
+// Build a small bracketed 2x2 matrix as HTML, optionally with a scalar prefix.
+function matrixTip(rows,prefix){
+  const cells=rows.map(r=>r.map(v=>`<span class="tip-cell">${v}</span>`).join('')).join('');
+  return`<div class="tip-mat">${prefix?`<span class="tip-coef">${prefix}</span>`:''}`+
+         `<span class="tip-brk">[</span><span class="tip-grid">${cells}</span><span class="tip-brk">]</span></div>`;
+}
+(function initTips(){
+  const tip=document.createElement('div');tip.id='custom-tip';tip.style.display='none';
+  document.body.appendChild(tip);
+  let hideT=null;
+  function show(el){
+    const key=el.getAttribute('data-tip');const html=TIP_HTML[key];if(!html)return;
+    clearTimeout(hideT);
+    tip.innerHTML=html;tip.style.display='block';
+    const r=el.getBoundingClientRect();
+    // Position above-right of the element, clamped to the viewport.
+    tip.style.left='0px';tip.style.top='0px';
+    const tw=tip.offsetWidth, th=tip.offsetHeight;
+    let x=r.left, y=r.top-th-8;
+    if(y<6)y=r.bottom+8;
+    if(x+tw>window.innerWidth-6)x=window.innerWidth-tw-6;
+    if(x<6)x=6;
+    tip.style.left=x+'px';tip.style.top=y+'px';
+  }
+  function hide(){hideT=setTimeout(()=>{tip.style.display='none';},80);}
+  document.querySelectorAll('[data-tip]').forEach(el=>{
+    el.addEventListener('mouseenter',()=>show(el));
+    el.addEventListener('mouseleave',hide);
+    el.addEventListener('focus',()=>show(el));
+    el.addEventListener('blur',hide);
+  });
 })();
 </script>
 </body>
